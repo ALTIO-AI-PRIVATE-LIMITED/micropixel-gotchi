@@ -1,0 +1,8 @@
+# Cheeko Gotchi board profile (OSTB_XIAOZHI_V1.2: ESP32-S3R8, 16 MB flash).
+# The shared S3 defaults already match it: 16 MB QIO flash, octal PSRAM at
+# 80 MHz, the 16 MiB partition table and the USB Serial/JTAG console.
+CONFIG_MICROPIXEL_BOARD_CHEEKO_GOTCHI=y
+
+# One 296 x 40 RGB565 strip in internal SRAM feeds the 40 MHz SPI panel.
+CONFIG_MICROPIXEL_LVGL_PARTIAL_BUFFER_HEIGHT=40
+# CONFIG_MICROPIXEL_LVGL_PARTIAL_BUFFER_PSRAM is not set

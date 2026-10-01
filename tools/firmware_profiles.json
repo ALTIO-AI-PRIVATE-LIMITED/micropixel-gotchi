@@ -141,6 +141,28 @@
     "flash": true,
     "monitor": true
   },
+  "cheeko-gotchi": {
+    "description": "Cheeko Gotchi ESP32-S3 Host",
+    "target": "esp32s3",
+    "chip_markers": [
+      "ESP32-S3"
+    ],
+    "build_dir": "build/host-esp32s3-gotchi",
+    "build_dir_env": "GOTCHI_S3_HOST_BUILD_DIR",
+    "sdkconfig_name": "sdkconfig.release",
+    "sdkconfig_defaults": [
+      "firmware/espressif/sdkconfig.defaults",
+      "firmware/espressif/sdkconfig.s3.defaults",
+      "firmware/espressif/sdkconfig.s3-gotchi.defaults"
+    ],
+    "app_store_size": "0x0800000",
+    "port_env": "GOTCHI_S3_PORT",
+    "baud_env": "GOTCHI_S3_BAUD",
+    "default_baud": 460800,
+    "preview": true,
+    "flash": true,
+    "monitor": true
+  },
   "m5stack-cores3": {
     "description": "M5Stack CoreS3 Host",
     "target": "esp32s3",

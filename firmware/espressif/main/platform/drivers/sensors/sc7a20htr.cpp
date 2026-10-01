@@ -13,6 +13,8 @@ constexpr uint8_t kControl4Register = 0x23U;
 constexpr uint8_t kOutputXLowRegister = 0x28U;
 constexpr uint8_t kAutoIncrement = 0x80U;
 constexpr uint8_t kWhoAmI = 0x11U;
+// LIS2DH12 shares the address, register map and 12-bit high-resolution scale.
+constexpr uint8_t kLis2dh12WhoAmI = 0x33U;
 constexpr uint8_t kPowerDown = 0x07U;
 constexpr uint8_t kSample10Hz = 0x27U;
 constexpr uint8_t kSample50Hz = 0x47U;
@@ -45,7 +47,7 @@ esp_err_t Sc7a20htr::Initialize(i2c_master_bus_handle_t bus) {
         status = i2c_master_transmit_receive(device_, &kWhoAmIRegister, sizeof(kWhoAmIRegister), &who_am_i,
                                              sizeof(who_am_i), kTimeoutMs);
     }
-    if (status == ESP_OK && who_am_i != kWhoAmI) {
+    if (status == ESP_OK && who_am_i != kWhoAmI && who_am_i != kLis2dh12WhoAmI) {
         status = ESP_ERR_INVALID_RESPONSE;
     }
     if (status == ESP_OK) {

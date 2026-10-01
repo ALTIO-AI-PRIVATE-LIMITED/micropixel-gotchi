@@ -10,11 +10,14 @@ szpi_baud_override="${SZPI_S3_BAUD:-}"
 cores3_port_override="${CORES3_S3_PORT:-}"
 cores3_baud_override="${CORES3_S3_BAUD:-}"
 watcher_port_override="${WATCHER_S3_PORT:-}"
+gotchi_port_override="${GOTCHI_S3_PORT:-}"
 watcher_baud_override="${WATCHER_S3_BAUD:-}"
+gotchi_baud_override="${GOTCHI_S3_BAUD:-}"
 s3_host_build_dir_override="${S3_HOST_BUILD_DIR:-}"
 szpi_host_build_dir_override="${SZPI_S3_HOST_BUILD_DIR:-}"
 cores3_host_build_dir_override="${CORES3_S3_HOST_BUILD_DIR:-}"
 watcher_host_build_dir_override="${WATCHER_S3_HOST_BUILD_DIR:-}"
+gotchi_host_build_dir_override="${GOTCHI_S3_HOST_BUILD_DIR:-}"
 s3_apps_output_dir_override="${S3_APPS_OUTPUT_DIR:-}"
 xtensa_wamrc_override="${XTENSA_WAMRC:-}"
 remote_control_host_override="${MICROPIXEL_REMOTE_CONTROL_HOST:-}"
@@ -51,8 +54,14 @@ fi
 if [[ -n "$watcher_port_override" ]]; then
     WATCHER_S3_PORT="$watcher_port_override"
 fi
+if [[ -n "$gotchi_port_override" ]]; then
+    GOTCHI_S3_PORT="$gotchi_port_override"
+fi
 if [[ -n "$watcher_baud_override" ]]; then
     WATCHER_S3_BAUD="$watcher_baud_override"
+fi
+if [[ -n "$gotchi_baud_override" ]]; then
+    GOTCHI_S3_BAUD="$gotchi_baud_override"
 fi
 if [[ -n "$s3_host_build_dir_override" ]]; then
     S3_HOST_BUILD_DIR="$s3_host_build_dir_override"
@@ -65,6 +74,9 @@ if [[ -n "$cores3_host_build_dir_override" ]]; then
 fi
 if [[ -n "$watcher_host_build_dir_override" ]]; then
     WATCHER_S3_HOST_BUILD_DIR="$watcher_host_build_dir_override"
+fi
+if [[ -n "$gotchi_host_build_dir_override" ]]; then
+    GOTCHI_S3_HOST_BUILD_DIR="$gotchi_host_build_dir_override"
 fi
 if [[ -n "$s3_apps_output_dir_override" ]]; then
     S3_APPS_OUTPUT_DIR="$s3_apps_output_dir_override"
@@ -94,6 +106,7 @@ host_build_dir="${S3_HOST_BUILD_DIR:-$workspace_root/build/host-esp32s3-box-3}"
 szpi_host_build_dir="${SZPI_S3_HOST_BUILD_DIR:-$workspace_root/build/host-esp32s3-szpi}"
 cores3_host_build_dir="${CORES3_S3_HOST_BUILD_DIR:-$workspace_root/build/host-esp32s3-cores3}"
 watcher_host_build_dir="${WATCHER_S3_HOST_BUILD_DIR:-$workspace_root/build/host-esp32s3-watcher}"
+gotchi_host_build_dir="${GOTCHI_S3_HOST_BUILD_DIR:-$workspace_root/build/host-esp32s3-gotchi}"
 # The SenseCAP Watcher's app_store partition is 24 MiB, so its BundleFS geometry
 # differs from the shared 8 MiB image. It gets its own staging directory to keep
 # the two geometries from overwriting each other.
@@ -105,7 +118,7 @@ usage() {
     cat <<'EOF'
 Usage: bash tools/s3.sh COMMAND [BOARD] [PORT] [--reset]
 
-Boards: box3 (default), szpi, cores3, watcher
+Boards: box3 (default), szpi, cores3, watcher, gotchi
 
 Common ESP32-S3 commands:
   build-null          Compile the ESP32-S3 hardware-independent Null gate.
@@ -358,6 +371,7 @@ is_board_name() {
     case "${1:-}" in
         box3 | esp-box-3 | szpi | szpi-esp32s3 | cores3 | m5stack-cores3) return 0 ;;
         watcher | sensecap-watcher) return 0 ;;
+        gotchi | cheeko-gotchi) return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -408,8 +422,19 @@ select_board() {
             board_apps_store="$watcher_apps_store"
             board_app_store_size="0x1800000"
             ;;
+        gotchi | cheeko-gotchi)
+            board_name="gotchi"
+            board_title="Cheeko Gotchi"
+            board_profile="cheeko-gotchi"
+            board_build_dir="$gotchi_host_build_dir"
+            board_defaults=(sdkconfig.s3.defaults sdkconfig.s3-gotchi.defaults)
+            board_baud="${GOTCHI_S3_BAUD:-460800}"
+            board_apps_output_dir="$apps_output_dir"
+            board_apps_store="$apps_store"
+            board_app_store_size="0x0800000"
+            ;;
         *)
-            echo "Unknown ESP32-S3 board: $1 (expected box3, szpi, cores3, or watcher)" >&2
+            echo "Unknown ESP32-S3 board: $1 (expected box3, szpi, cores3, watcher, or gotchi)" >&2
             exit 2
             ;;
     esac

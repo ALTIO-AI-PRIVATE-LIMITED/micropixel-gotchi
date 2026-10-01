@@ -2,6 +2,10 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
+> **This repository is a port of [MicroPixel](https://github.com/78/micropixel) to the
+> Cheeko Gotchi** by ALTIO AI Private Limited. It tracks upstream and adds one board; see
+> [Cheeko Gotchi](#cheeko-gotchi) below. Everything else is upstream MicroPixel.
+
 [MicroPixel](https://micropixel.ai) runs WebAssembly apps on Espressif microcontrollers.
 Apps use a C++23 SDK for graphics, input, audio, storage, and sensors, without depending on a board-specific SDK.
 The firmware manages hardware, app isolation, and the system UI.
@@ -16,6 +20,7 @@ The firmware manages hardware, app isolation, and the system UI.
 | ESP32-S3 | [LCKFB SZPI](https://wiki.lckfb.com/zh-hans/szpi-esp32s3/beginner/introduction.html) |
 | ESP32-S3 | [M5Stack CoreS3](https://docs.m5stack.com/en/core/CoreS3) |
 | ESP32-S3 | [SenseCAP Watcher](https://wiki.seeedstudio.com/cn/getting_started_with_watcher/) |
+| ESP32-S3 | [Cheeko Gotchi](#cheeko-gotchi) (this fork) |
 
 The Host uses ESP-IDF 6.1 and a pinned [WAMR fork](https://github.com/78/wasm-micro-runtime).
 Apps are compiled to architecture-specific AOT v6 bundles. The ABI is still evolving.
@@ -45,7 +50,43 @@ python3 -m pip install -r requirements-dev.txt
 bash tools/p4.sh build-host
 ```
 
-Other profiles: `bash tools/s31.sh build-host` and `bash tools/s3.sh build-host <box3|szpi|cores3|watcher>`.
+Other profiles: `bash tools/s31.sh build-host` and `bash tools/s3.sh build-host <box3|szpi|cores3|watcher|gotchi>`.
+
+## Cheeko Gotchi
+
+The Cheeko Gotchi (board revision OSTB_XIAOZHI_V1.2) is an ESP32-S3R8 with 16 MB flash, 8 MB octal PSRAM and
+native USB. The board profile lives in
+[`firmware/espressif/main/platform/boards/cheeko-gotchi`](firmware/espressif/main/platform/boards/cheeko-gotchi).
+
+| Part | Support |
+|---|---|
+| JD9853 2.01" 240x296 IPS, SPI 40 MHz | Shown as 296x240 landscape with its own Host UI profile (`landscape_296`) |
+| CST810 touch, I2C 0x15 | Polled |
+| ES8311 + NS4150B speaker | Audio output |
+| SC7A20 / LIS2DH12 accelerometer, I2C 0x19 | Acceleration sensor |
+| BOOT, VOL-, VOL+ keys | Confirm, Left, Right |
+| Native Wi-Fi, USB Serial/JTAG | Local control, screenshots, logs |
+| ES7210 microphones, battery level, power key | Not supported yet |
+
+The Host firmware needs only ESP-IDF 6.1 (the commit pinned in `tools/ci/firmware-sources.json`). WASI SDK and
+the Xtensa WAMRC are only needed to build Apps yourself: the stock S3 Apps can be taken from an official
+release instead, because every 16 MB ESP32-S3 board shares the same App Store.
+
+```sh
+git submodule update --init --recursive
+source /path/to/esp-idf-v6.1/export.sh
+python3 -m pip install -r requirements-dev.txt
+bash tools/s3.sh build-host gotchi
+python3 tools/fetch_release_app_store.py
+bash tools/s3.sh flash-host gotchi /dev/cu.usbmodemXXXX
+bash tools/s3.sh flash-apps gotchi /dev/cu.usbmodemXXXX
+```
+
+The build directory must not contain spaces; an ESP-IDF component's patch step fails on such paths.
+
+Status: the firmware boots on the board, the App Hall renders at 296x240 and the stock Apps run. Panel colour
+order, touch direction and accelerometer axes still need checking on the device; colour order is
+`kColorOrder` in [`display_hardware.cpp`](firmware/espressif/main/platform/boards/cheeko-gotchi/display_hardware.cpp).
 
 ## Project
 

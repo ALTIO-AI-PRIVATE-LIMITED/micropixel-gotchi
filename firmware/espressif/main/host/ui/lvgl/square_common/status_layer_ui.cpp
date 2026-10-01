@@ -80,6 +80,48 @@ const StatusLayerUi::Layout& StatusLayerUi::ActiveLayout() const {
         .scrim_rgb = theme::kStatusScrim,
         .scrim_opacity = 190U,
     };
+    // Cheeko Gotchi: the 320 sheet narrowed to a 296 px panel. The dialog keeps
+    // its 8 px margin and the tiles their 8 px inset, so each of the three
+    // columns loses 8 px and each slider 12 px; heights are unchanged.
+    static constexpr Layout kLayoutLandscape296{
+        .screen_width = 296,
+        .screen_height = 240,
+        .dialog = {.x = 8, .y = 8, .width = 280, .height = 200},
+        .dialog_hidden_y = -200,
+        .quick = {{.x = 16, .y = 16, .width = 84, .height = 48},
+                  {.x = 106, .y = 16, .width = 84, .height = 48},
+                  {.x = 196, .y = 16, .width = 84, .height = 48}},
+        .sliders = {{.x = 16, .y = 70, .width = 128, .height = 66}, {.x = 152, .y = 70, .width = 128, .height = 66}},
+        .metrics = {{.x = 16, .y = 142, .width = 84, .height = 56},
+                    {.x = 106, .y = 142, .width = 84, .height = 56},
+                    {.x = 196, .y = 142, .width = 84, .height = 56}},
+        .performance_overlay_y = kLayoutLandscape320.performance_overlay_y,
+        .panel_radius = kLayoutLandscape320.panel_radius,
+        .dialog_radius = kLayoutLandscape320.dialog_radius,
+        .dialog_border_width = kLayoutLandscape320.dialog_border_width,
+        .quick_label_x = kLayoutLandscape320.quick_label_x,
+        .quick_name_y = kLayoutLandscape320.quick_name_y,
+        .quick_detail_y = kLayoutLandscape320.quick_detail_y,
+        .slider_label_x = kLayoutLandscape320.slider_label_x,
+        .slider_label_y = kLayoutLandscape320.slider_label_y,
+        .slider_value_width = kLayoutLandscape320.slider_value_width,
+        .slider_track_x = kLayoutLandscape320.slider_track_x,
+        .slider_track_y = kLayoutLandscape320.slider_track_y,
+        .slider_track_height = kLayoutLandscape320.slider_track_height,
+        .slider_knob_size = kLayoutLandscape320.slider_knob_size,
+        .metric_label_x = kLayoutLandscape320.metric_label_x,
+        .metric_name_y = kLayoutLandscape320.metric_name_y,
+        .metric_value_y = kLayoutLandscape320.metric_value_y,
+        .metric_track_x = kLayoutLandscape320.metric_track_x,
+        .metric_track_y = kLayoutLandscape320.metric_track_y,
+        .metric_track_height = kLayoutLandscape320.metric_track_height,
+        .quick_name_font = kLayoutLandscape320.quick_name_font,
+        .quick_detail_font = kLayoutLandscape320.quick_detail_font,
+        .control_font = kLayoutLandscape320.control_font,
+        .metric_font = kLayoutLandscape320.metric_font,
+        .scrim_rgb = kLayoutLandscape320.scrim_rgb,
+        .scrim_opacity = kLayoutLandscape320.scrim_opacity,
+    };
     // SenseCAP Watcher: a 412 px round cover. The 480 layout is 448 px wide and
     // starts at y = 16, so on this panel its right column fell 52 px off the
     // screen and its whole top band sat behind the bezel. Everything here is
@@ -240,6 +282,9 @@ const StatusLayerUi::Layout& StatusLayerUi::ActiveLayout() const {
     };
     if (layout_profile_ == StatusLayerLayoutProfile::kRound412) {
         return kLayout412;
+    }
+    if (layout_profile_ == StatusLayerLayoutProfile::kLandscape296) {
+        return kLayoutLandscape296;
     }
     lv_display_t* display = lv_screen_active() != nullptr ? lv_obj_get_display(lv_screen_active()) : nullptr;
     if (display != nullptr && lv_display_get_horizontal_resolution(display) <= 320 &&

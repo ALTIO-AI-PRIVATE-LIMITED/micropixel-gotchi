@@ -1,0 +1,15 @@
+list(APPEND micropixel_sources
+    "platform/boards/cheeko-gotchi/board_hardware.cpp"
+    "platform/boards/cheeko-gotchi/cst810_touch.cpp"
+    "platform/boards/cheeko-gotchi/display_hardware.cpp"
+    "platform/boards/cheeko-gotchi/jd9853_panel.cpp"
+    "platform/boards/cheeko-gotchi/platform.cpp"
+    "platform/boards/cheeko-gotchi/sensor_peripheral.cpp"
+    "platform/boards/esp32-s3-common/display_shadow.cpp"
+    "platform/drivers/sensors/sc7a20htr.cpp"
+    "platform/input/esp_lcd_touch_input.cpp"
+    "platform/input/gpio_key_input.cpp"
+    "platform/sensors/polled_vector_sensor_peripheral.cpp"
+    "platform/transports/development_display_control.cpp"
+    "platform/transports/usb_serial_jtag_local_control.cpp"
+)

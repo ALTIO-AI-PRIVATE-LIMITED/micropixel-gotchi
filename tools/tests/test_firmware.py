@@ -54,6 +54,7 @@ class FirmwareProfileTest(unittest.TestCase):
                 "szpi-esp32s3",
                 "m5stack-cores3",
                 "sensecap-watcher",
+                "cheeko-gotchi",
             },
         )
         self.assertTrue(self.profiles["metalio-claw4"].flash)
@@ -77,6 +78,8 @@ class FirmwareProfileTest(unittest.TestCase):
         self.assertTrue(self.profiles["m5stack-cores3"].monitor)
         self.assertTrue(self.profiles["sensecap-watcher"].flash)
         self.assertTrue(self.profiles["sensecap-watcher"].monitor)
+        self.assertTrue(self.profiles["cheeko-gotchi"].flash)
+        self.assertTrue(self.profiles["cheeko-gotchi"].monitor)
 
     def test_p4_command_uses_non_preview_target_and_defaults(self) -> None:
         profile = self.profiles["metalio-claw4"]

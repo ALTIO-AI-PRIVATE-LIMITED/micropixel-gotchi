@@ -197,6 +197,16 @@ menu "MicroPixel board backends"
             the vendor SenseCraft factory partition stay outside this board
             profile.
 
+    config MICROPIXEL_BOARD_CHEEKO_GOTCHI
+        bool "Cheeko Gotchi"
+        depends on IDF_TARGET_ESP32S3
+        help
+            Bring up the Cheeko Gotchi's 296x240 JD9853 SPI panel, CST810
+            touch controller, ES8311 audio output, SC7A20/LIS2DH12
+            accelerometer, front keys, native Wi-Fi, Guest Graphics and App
+            Hall. The ES7210 microphones and battery gauge remain outside this
+            board profile.
+
     config MICROPIXEL_BOARD_NULL
         bool "Null board"
         help
