@@ -329,6 +329,17 @@ constexpr uint32_t kRemoteControlServiceTextCapacity = 64U;
 constexpr uint32_t kRemoteControlDeviceIdCapacity = 37U;
 constexpr uint32_t kRemoteControlPairingCodeCapacity = 10U;
 constexpr uint32_t kRemoteControlStatusTextCapacity = 96U;
+// The owner's display name as UTF-8, truncated on a character boundary.
+constexpr uint32_t kRemoteControlOwnerNameCapacity = 65U;
+
+// Device-initiated release of the account link (Settings -> Reset device).
+enum class RemoteControlReleaseState : uint8_t {
+    kIdle,
+    kPending,
+    kSucceeded,
+    kFailed,
+};
+
 struct RemoteControlModel final {
     std::array<char, kRemoteControlServiceTextCapacity> service{};
     std::array<char, kRemoteControlDeviceIdCapacity> device_id{};
@@ -336,6 +347,7 @@ struct RemoteControlModel final {
     std::array<char, kRemoteControlStatusTextCapacity> status_message{};
     std::array<char, kFirmwareVersionTextCapacity> latest_firmware_version{};
     std::array<char, kRemoteControlStatusTextCapacity> firmware_update_message{};
+    std::array<char, kRemoteControlOwnerNameCapacity> owner_name{};
     uint32_t firmware_release_notes_revision{};
     uint32_t pairing_expires_seconds{};
     uint32_t firmware_size_bytes{};
@@ -348,6 +360,31 @@ struct RemoteControlModel final {
     bool pairing_code_available{};
     bool firmware_update_available{};
     bool firmware_update_installable{};
+    // The control stream has delivered session.ready, so session-scoped frames
+    // (pairing.consumed, device.binding) can be matched.
+    bool session_ready{};
+    // The Gotchi is linked to an owner's account. Persisted, so it holds offline.
+    bool bound{};
+    RemoteControlReleaseState release_state{RemoteControlReleaseState::kIdle};
+};
+
+// First-run setup shown until the Gotchi is linked to an account. Wi-Fi uses
+// the regular Wi-Fi page; these are the remaining steps.
+enum class SetupStep : uint8_t {
+    kWelcome,
+    kConnecting,
+    kLink,
+    kDone,
+};
+
+struct SetupModel final {
+    std::array<char, kRemoteControlPairingCodeCapacity> code{};
+    std::array<char, kRemoteControlOwnerNameCapacity> owner_name{};
+    std::array<char, kMaxWifiSsidLength + 1U> wifi_name{};
+    uint32_t code_expires_seconds{};
+    SetupStep step{SetupStep::kWelcome};
+    // The control service stayed unreachable; offer retry or another network.
+    bool connect_failed{};
 };
 
 constexpr uint32_t kSystemInformationTextCapacity = 64U;
@@ -495,6 +532,8 @@ struct WifiSettingsModel final {
     bool scanning{};
     bool control_pending{};
     bool control_failed{};
+    // Open on the network list instead of saved networks (first-run setup).
+    bool open_scan_view{};
     uint64_t command_ack_us{};
     WifiConnectionState connection_state{WifiConnectionState::kDisconnected};
 };
@@ -557,6 +596,13 @@ enum class SystemUiActionType {
     kPresentActionSheet,
     kDismissAppError,
     kUpdateLanguageFont,
+    // Settings -> Remote Control -> Reset device, after confirmation.
+    kResetDevice,
+    // First-run setup.
+    kSetupStart,
+    kSetupRetry,
+    kSetupChangeWifi,
+    kSetupFinish,
 };
 
 struct SystemUiAction final {
@@ -635,6 +681,16 @@ class SystemUi {
                                                                                void* action_context) = 0;
     virtual void UpdateRemoteControl(const RemoteControlModel& model) = 0;
     virtual void LeaveRemoteControl() = 0;
+    [[nodiscard]] virtual std::expected<void, SystemUiError> ShowSetup(const SetupModel& model,
+                                                                       SystemUiActionSink action_sink,
+                                                                       void* action_context) {
+        (void)model;
+        (void)action_sink;
+        (void)action_context;
+        return std::unexpected(SystemUiError::kUnavailable);
+    }
+    virtual void UpdateSetup(const SetupModel& model) { (void)model; }
+    virtual void LeaveSetup() {}
     [[nodiscard]] virtual std::expected<void, SystemUiError> ShowAppManagement(const AppManagementModel& model,
                                                                                SystemUiActionSink action_sink,
                                                                                void* action_context) = 0;

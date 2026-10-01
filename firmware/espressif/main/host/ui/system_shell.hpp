@@ -63,6 +63,9 @@ class SystemShell final {
     [[nodiscard]] std::expected<void, SystemUiError> ShowRemoteControl(const RemoteControlModel& model);
     void UpdateRemoteControl(const RemoteControlModel& model);
     void LeaveRemoteControl();
+    [[nodiscard]] std::expected<void, SystemUiError> ShowSetup(const SetupModel& model);
+    void UpdateSetup(const SetupModel& model);
+    void LeaveSetup();
     [[nodiscard]] std::expected<void, SystemUiError> ShowAppManagement(const AppManagementModel& model);
     void LeaveAppManagement();
     [[nodiscard]] std::expected<void, SystemUiError> ShowWifiSettings(const WifiSettingsModel& model);

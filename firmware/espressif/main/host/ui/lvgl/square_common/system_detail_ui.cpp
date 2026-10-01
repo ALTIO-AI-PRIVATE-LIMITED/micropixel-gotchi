@@ -8,6 +8,9 @@ namespace micropixel::host_ui::lvgl::square_common {
 
 void SystemDetailUi::ResetActiveScreen() {
     power_animation_refresh_.Stop();
+    setup_animation_refresh_.Stop();
+    setup_expiry_label_ = nullptr;
+    remote_control_reset_confirmation_visible_ = false;
     root_ = nullptr;
     action_sink_ = nullptr;
     action_context_ = nullptr;

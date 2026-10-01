@@ -68,6 +68,21 @@ void SystemDetailUi::RenderRemoteControlLocked() {
                                                  : UiText(host_strings::Id::kUiNotConfigured));
     lv_obj_set_style_border_width(service_row, 0, 0);
 
+    if (remote_control_model_.bound) {
+        DrawRemoteControlLinkLocked(scroll);
+        if (remote_control_reset_confirmation_visible_) {
+            DrawRemoteControlResetConfirmationLocked();
+        }
+        remote_control_confirmation_rendered_ = remote_control_reset_confirmation_visible_;
+        lv_obj_update_layout(scroll);
+        lv_obj_scroll_to_y(scroll, remote_control_scroll_offset_, LV_ANIM_OFF);
+        remote_control_scroll_gesture_active_ = false;
+        remote_control_render_pending_ = false;
+        lv_obj_move_foreground(root_);
+        platform::lvgl::RequestDisplayRefresh(lv_obj_get_display(root_));
+        return;
+    }
+
     lv_obj_t* pairing = Panel(layout_, scroll);
     (void)Label(pairing, UiText(host_strings::Id::kUiConnectThisDevice), platform::lvgl::SystemFontRole::kLarge,
                 theme::kPrimaryText);
@@ -121,11 +136,59 @@ void SystemDetailUi::RenderRemoteControlLocked() {
     platform::lvgl::RequestDisplayRefresh(lv_obj_get_display(root_));
 }
 
+// A linked Gotchi shows its owner instead of connection codes, and offers a
+// reset in place of turning Remote Control off.
+void SystemDetailUi::DrawRemoteControlLinkLocked(lv_obj_t* scroll) {
+    lv_obj_t* link = Panel(layout_, scroll);
+    (void)Label(link, UiText(host_strings::Id::kRemoteLinkedTitle), platform::lvgl::SystemFontRole::kSmall,
+                theme::kMutedText);
+    lv_obj_t* owner = Label(link,
+                            remote_control_model_.owner_name[0] != '\0'
+                                ? remote_control_model_.owner_name.data()
+                                : UiText(host_strings::Id::kSetupLinked),
+                            platform::lvgl::SystemFontRole::kLarge, theme::kPositive);
+    lv_obj_set_width(owner, LV_PCT(100));
+    lv_label_set_long_mode(owner, LV_LABEL_LONG_DOT);
+    lv_obj_t* body = Label(link, UiText(host_strings::Id::kRemoteLinkedBody), platform::lvgl::SystemFontRole::kSmall,
+                           theme::kSecondaryText);
+    lv_obj_set_width(body, LV_PCT(100));
+    lv_label_set_long_mode(body, LV_LABEL_LONG_WRAP);
+
+    const auto release = remote_control_model_.release_state;
+    const bool pending = release == host_ui::RemoteControlReleaseState::kPending;
+    const bool online = remote_control_model_.session_ready;
+    lv_obj_t* reset = Button(layout_, scroll,
+                             pending ? UiText(host_strings::Id::kRemoteResetting)
+                                     : UiText(host_strings::Id::kRemoteResetDevice),
+                             pending || !online ? theme::kSecondaryText : theme::kDanger);
+    if (!pending && online) {
+        lv_obj_add_event_cb(reset, RemoteControlResetEvent, LV_EVENT_SHORT_CLICKED, this);
+    } else {
+        lv_obj_set_clickable(reset, false);
+    }
+    const char* note = release == host_ui::RemoteControlReleaseState::kFailed
+                           ? UiText(host_strings::Id::kRemoteResetFailed)
+                       : !online && !pending ? UiText(host_strings::Id::kRemoteResetNeedsInternet)
+                                             : nullptr;
+    if (note != nullptr) {
+        lv_obj_t* label = Label(scroll, note, platform::lvgl::SystemFontRole::kSmall,
+                                release == host_ui::RemoteControlReleaseState::kFailed ? theme::kDanger
+                                                                                        : theme::kMutedText);
+        lv_obj_set_width(label, LV_PCT(100));
+        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    }
+}
+
 void SystemDetailUi::UpdateRemoteControlLocked(const host_ui::RemoteControlModel& model) {
     if (RemoteControlVisible()) {
         remote_control_model_ = model;
         if (!model.enabled) {
             remote_control_off_confirmation_visible_ = false;
+        }
+        if (!model.bound || !model.session_ready ||
+            model.release_state == host_ui::RemoteControlReleaseState::kPending) {
+            remote_control_reset_confirmation_visible_ = false;
         }
         if (remote_control_scroll_gesture_active_) {
             remote_control_render_pending_ = true;
@@ -178,10 +241,28 @@ void SystemDetailUi::RemoteControlPairingEvent(lv_event_t* event) {
     }
 }
 
+void SystemDetailUi::RemoteControlResetEvent(lv_event_t* event) {
+    auto* ui = static_cast<SystemDetailUi*>(lv_event_get_user_data(event));
+    if (ui != nullptr && ui->RemoteControlVisible()) {
+        ui->remote_control_reset_confirmation_visible_ = true;
+        ui->QueueRemoteControlRender();
+    }
+}
+
+void SystemDetailUi::RemoteControlConfirmResetEvent(lv_event_t* event) {
+    auto* ui = static_cast<SystemDetailUi*>(lv_event_get_user_data(event));
+    if (ui == nullptr || ui->action_sink_ == nullptr || !ui->remote_control_model_.bound) {
+        return;
+    }
+    ui->remote_control_reset_confirmation_visible_ = false;
+    ui->action_sink_(ui->action_context_, host_ui::SystemUiAction{.type = host_ui::SystemUiActionType::kResetDevice});
+}
+
 void SystemDetailUi::RemoteControlConfirmationCancelEvent(lv_event_t* event) {
     auto* ui = static_cast<SystemDetailUi*>(lv_event_get_user_data(event));
     if (ui != nullptr) {
         ui->remote_control_off_confirmation_visible_ = false;
+        ui->remote_control_reset_confirmation_visible_ = false;
         ui->QueueRemoteControlRender();
     }
 }
@@ -226,6 +307,22 @@ void SystemDetailUi::DrawRemoteControlOffConfirmationLocked() {
     lv_label_set_long_mode(detail, LV_LABEL_LONG_WRAP);
     lv_obj_t* turn_off = Button(layout_, sheet, UiText(host_strings::Id::kUiTurnOff), theme::kDanger);
     lv_obj_add_event_cb(turn_off, RemoteControlConfirmOffEvent, LV_EVENT_SHORT_CLICKED, this);
+    lv_obj_t* cancel = Button(layout_, sheet, UiText(host_strings::Id::kUiCancel));
+    lv_obj_add_event_cb(cancel, RemoteControlConfirmationCancelEvent, LV_EVENT_SHORT_CLICKED, this);
+}
+
+void SystemDetailUi::DrawRemoteControlResetConfirmationLocked() {
+    lv_obj_t* sheet = CreateActionSheet(action_sheets_, action_sink_, action_context_, layout_, root_,
+                                        RemoteControlConfirmationCancelEvent, this, theme::kDangerBorder, nullptr,
+                                        !remote_control_confirmation_rendered_);
+    (void)Label(sheet, UiText(host_strings::Id::kRemoteResetConfirmTitle), platform::lvgl::SystemFontRole::kLarge,
+                theme::kPrimaryText);
+    lv_obj_t* detail = Label(sheet, UiText(host_strings::Id::kRemoteResetConfirmBody),
+                             platform::lvgl::SystemFontRole::kMedium, theme::kSecondaryText);
+    lv_obj_set_width(detail, LV_PCT(100));
+    lv_label_set_long_mode(detail, LV_LABEL_LONG_WRAP);
+    lv_obj_t* reset = Button(layout_, sheet, UiText(host_strings::Id::kRemoteReset), theme::kDanger);
+    lv_obj_add_event_cb(reset, RemoteControlConfirmResetEvent, LV_EVENT_SHORT_CLICKED, this);
     lv_obj_t* cancel = Button(layout_, sheet, UiText(host_strings::Id::kUiCancel));
     lv_obj_add_event_cb(cancel, RemoteControlConfirmationCancelEvent, LV_EVENT_SHORT_CLICKED, this);
 }

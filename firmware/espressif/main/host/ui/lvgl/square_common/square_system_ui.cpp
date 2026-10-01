@@ -188,6 +188,16 @@ void SquareSystemUi::UpdateRemoteControl(const host_ui::RemoteControlModel& mode
 
 void SquareSystemUi::LeaveRemoteControl() { state_.LeaveRemoteControl(); }
 
+std::expected<void, host_ui::SystemUiError> SquareSystemUi::ShowSetup(const host_ui::SetupModel& model,
+                                                                      host_ui::SystemUiActionSink action_sink,
+                                                                      void* action_context) {
+    return state_.ShowSetup(model, action_sink, action_context);
+}
+
+void SquareSystemUi::UpdateSetup(const host_ui::SetupModel& model) { state_.UpdateSetup(model); }
+
+void SquareSystemUi::LeaveSetup() { state_.LeaveSetup(); }
+
 std::expected<void, host_ui::SystemUiError> SquareSystemUi::ShowAppManagement(const host_ui::AppManagementModel& model,
                                                                               host_ui::SystemUiActionSink action_sink,
                                                                               void* action_context) {

@@ -51,8 +51,14 @@ struct FontSlot {
     lv_font_t language_proxy{};
     lv_font_t proxy{};
 };
+struct DisplayFont {
+    std::unique_ptr<lv_font_t, TinyDeleter> source{};
+    TinyTtfFontCache cache{};
+    bool failed{};
+};
 struct FontState {
     std::array<FontSlot, 4> slots{};
+    DisplayFont display{};
     bool ready{};
     bool prepared{};
     bool prepared_english{};
@@ -140,6 +146,23 @@ bool CommitSystemLanguageFont(CommitLanguageSetting commit_setting, void* contex
     state.prepared = false;
     esp_lv_adapter_unlock();
     return true;
+}
+
+const lv_font_t* SystemDisplayFont() {
+    static constexpr std::array<uint32_t, 11> kDigits{' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    auto& display = state.display;
+    if (display.cache.font() == nullptr && !display.failed) {
+        display.source.reset(lv_tiny_ttf_create_data_ex(system_ttf_start, system_ttf_end - system_ttf_start,
+                                                        kSizes[3] * 5 / 3, LV_FONT_KERNING_NORMAL, 16U));
+        if (!display.source || !display.cache.Initialize(*display.source, kDigits, 16U)) {
+            display.cache.Reset();
+            display.source.reset();
+            display.failed = true;
+            ESP_LOGW("system_fonts", "display font is unavailable; using the title font");
+        }
+    }
+    const lv_font_t* font = display.cache.font();
+    return font != nullptr ? font : BuiltinLatinFont(SystemFontRole::kTitle);
 }
 
 const lv_font_t* SystemFont(SystemFontRole role, const lv_font_t* fallback) {

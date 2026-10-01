@@ -128,7 +128,7 @@ std::expected<void, host_ui::SystemUiError> WifiSettingsUi::ShowLocked(
     action_context_ = action_context;
     raise_overlay_sink_ = raise_overlay_sink;
     raise_overlay_context_ = raise_overlay_context;
-    scan_view_ = false;
+    scan_view_ = model.open_scan_view;
     action_sheet_visible_ = false;
     action_sheet_rendered_ = false;
     password_visible_ = false;

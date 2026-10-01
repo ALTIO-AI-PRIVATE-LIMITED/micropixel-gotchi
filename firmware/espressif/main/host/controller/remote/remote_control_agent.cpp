@@ -33,6 +33,7 @@
 #include "freertos/task.h"
 #include "host/controller/remote/firmware_release_notes.hpp"
 #include "host/controller/remote/network_snapshot_json.hpp"
+#include "host/controller/remote/remote_binding_policy.hpp"
 #include "host/controller/remote/remote_control_defaults.hpp"
 #include "host/controller/remote/remote_pairing_policy.hpp"
 #include "host/controller/remote/remote_reconnect_policy.hpp"
@@ -83,6 +84,7 @@ const char* ProtocolErrorMessage(const char* code) {
     if (std::strcmp(code, "app_active") == 0) return "Another App Session is already active.";
     if (std::strcmp(code, "host_command_queue_full") == 0) return "The Host command queue is full.";
     if (std::strcmp(code, "artifact_upload_failed") == 0) return "A result artifact could not be uploaded.";
+    if (std::strcmp(code, "device_not_linked") == 0) return "The Gotchi is not linked to an account yet.";
     if (std::strcmp(code, "firmware_target_mismatch") == 0) {
         return "The firmware image targets a different chip.";
     }
@@ -591,6 +593,14 @@ void RemoteControlAgent::ReleaseTaskContext() {
 }
 
 bool RemoteControlAgent::Start(bool enabled) {
+    // The account link must be known before the first App Hall render, even
+    // offline. sys_store is ready once the Host settings store has initialized.
+    RemoteBinding binding{};
+    if (binding_store_.Load(binding)) {
+        std::lock_guard<std::mutex> lock(model_mutex_);
+        model_.bound = binding.bound;
+        model_.owner_name = binding.owner_name;
+    }
 #if !CONFIG_MICROPIXEL_REMOTE_CONTROL_AGENT
     (void)enabled;
     SetConnectionState(host_ui::RemoteControlConnectionState::kDisabled, "Remote Control agent is not built");
@@ -697,6 +707,31 @@ bool RemoteControlAgent::RequestFirmwareUpdate() {
         CopyText(model_.firmware_update_message, "Update requested");
     }
     return queued;
+}
+
+bool RemoteControlAgent::RequestRelease() {
+    std::lock_guard<std::mutex> lock(model_mutex_);
+    if (!model_.enabled || !model_.session_ready ||
+        model_.release_state == host_ui::RemoteControlReleaseState::kPending) {
+        return false;
+    }
+    const bool queued = QueueCommand(Command{.type = CommandType::kReleaseDevice});
+    if (queued) {
+        model_.release_state = host_ui::RemoteControlReleaseState::kPending;
+    }
+    return queued;
+}
+
+void RemoteControlAgent::AcknowledgeRelease() {
+    std::lock_guard<std::mutex> lock(model_mutex_);
+    if (model_.release_state != host_ui::RemoteControlReleaseState::kPending) {
+        model_.release_state = host_ui::RemoteControlReleaseState::kIdle;
+    }
+}
+
+bool RemoteControlAgent::Bound() const {
+    std::lock_guard<std::mutex> lock(model_mutex_);
+    return model_.bound;
 }
 
 host_ui::RemoteControlModel RemoteControlAgent::Snapshot() const {
@@ -879,6 +914,35 @@ void RemoteControlAgent::RefreshPairingDeadline() {
     }
     const uint32_t remaining_ms = static_cast<uint32_t>(remaining_ticks) * portTICK_PERIOD_MS;
     model_.pairing_expires_seconds = (remaining_ms + 999U) / 1000U;
+}
+
+void RemoteControlAgent::ApplyBinding(bool bound, const char* owner_name) {
+    RemoteBinding binding{};
+    binding.bound = bound;
+    bool changed = false;
+    {
+        std::lock_guard<std::mutex> lock(model_mutex_);
+        if (bound && owner_name == nullptr) {
+            binding.owner_name = model_.owner_name;
+        } else if (bound) {
+            (void)CopyOwnerName(owner_name, binding.owner_name.data(), binding.owner_name.size());
+        }
+        changed = model_.bound != binding.bound || model_.owner_name != binding.owner_name;
+        model_.bound = binding.bound;
+        model_.owner_name = binding.owner_name;
+    }
+    if (!changed) {
+        return;
+    }
+    ESP_LOGI(kTag, "account link changed: %s", bound ? "linked" : "not linked");
+    if (!binding_store_.Save(binding)) {
+        ESP_LOGW(kTag, "account link could not be persisted");
+    }
+}
+
+void RemoteControlAgent::SetReleaseState(host_ui::RemoteControlReleaseState state) {
+    std::lock_guard<std::mutex> lock(model_mutex_);
+    model_.release_state = state;
 }
 
 bool RemoteControlAgent::LoadIdentity(Identity& identity) const { return identity_store_.Load(identity); }
@@ -2472,6 +2536,10 @@ void RemoteControlAgent::HandleControlLine(void* client, const Identity& identit
         } else {
             control_session_id_ = session_id;
             event_sequence_ = 0U;
+            {
+                std::lock_guard<std::mutex> lock(model_mutex_);
+                model_.session_ready = true;
+            }
             cJSON* hello = cJSON_CreateObject();
             cJSON* capabilities = hello != nullptr ? cJSON_AddArrayToObject(hello, "capabilities") : nullptr;
             cJSON* limits = hello != nullptr ? cJSON_AddObjectToObject(hello, "limits") : nullptr;
@@ -2511,6 +2579,19 @@ void RemoteControlAgent::HandleControlLine(void* client, const Identity& identit
         }
         if (matches) {
             ClearPairingInSnapshot("Connection code used", pairing_id);
+            // The code was redeemed by an account; device.binding follows with
+            // the owner's name.
+            ApplyBinding(true, nullptr);
+        }
+    } else if (type != nullptr && std::strcmp(type, "device.binding") == 0) {
+        const cJSON* version = cJSON_GetObjectItemCaseSensitive(root, "protocolVersion");
+        const cJSON* bound = cJSON_GetObjectItemCaseSensitive(root, "bound");
+        const char* session_id = JsonString(root, "sessionId");
+        const char* owner_name = JsonString(root, "ownerName");
+        if (cJSON_IsBool(bound) && MatchesSessionFrame(cJSON_IsNumber(version) ? version->valuedouble : -1.0,
+                                                       session_id != nullptr ? session_id : "",
+                                                       control_session_id_.data())) {
+            ApplyBinding(cJSON_IsTrue(bound), owner_name != nullptr ? owner_name : "");
         }
     } else if (type != nullptr && std::strcmp(type, "command") == 0) {
         const char* command_id = JsonString(root, "commandId");
@@ -2603,6 +2684,7 @@ void RemoteControlAgent::TaskMain() {
     Http3AsyncRequestHandle status_request{};
     Http3AsyncRequestHandle pairing_request{};
     Http3AsyncRequestHandle pairing_cancel_request{};
+    Http3AsyncRequestHandle release_request{};
     auto& read_buffer = task_context.control_read_buffer;
     TickType_t next_firmware_check_ticks = 0U;
     bool credential_refresh_attempted = false;
@@ -2638,6 +2720,15 @@ void RemoteControlAgent::TaskMain() {
             stale_pairing_id = pairing_id_;
         }
         const bool retry_pairing = pairing_request.valid() && pairing_code_pending;
+        // A release needs this session; the user retries after reconnecting.
+        if (release_request.valid() || release_requested_) {
+            SetReleaseState(host_ui::RemoteControlReleaseState::kFailed);
+        }
+        release_requested_ = false;
+        {
+            std::lock_guard<std::mutex> lock(model_mutex_);
+            model_.session_ready = false;
+        }
         // A consumed notification may be lost with the stream. Do not retain an
         // unverifiable code across reconnects; the next request replaces it.
         if (stale_pairing_id[0] != '\0') {
@@ -2653,6 +2744,7 @@ void RemoteControlAgent::TaskMain() {
         status_request = {};
         pairing_request = {};
         pairing_cancel_request = {};
+        release_request = {};
         if (control_stream) {
             control_stream->Close();
             control_stream.reset();
@@ -2718,6 +2810,19 @@ void RemoteControlAgent::TaskMain() {
                 pairing_request = {};
                 continue;
             }
+            if (result.handle.value == release_request.value) {
+                const bool released = result.outcome == Http3AsyncOutcome::kSucceeded && result.status == 204;
+                if (released) {
+                    ClearPairingInSnapshot(nullptr);
+                    ApplyBinding(false, nullptr);
+                }
+                SetReleaseState(released ? host_ui::RemoteControlReleaseState::kSucceeded
+                                         : host_ui::RemoteControlReleaseState::kFailed);
+                ESP_LOGI(kTag, "release request completed: status=%d released=%s", result.status,
+                         released ? "yes" : "no");
+                release_request = {};
+                continue;
+            }
             if (result.handle.value == pairing_cancel_request.value) {
                 if (result.outcome != Http3AsyncOutcome::kSucceeded || (result.status != 204 && result.status != 404)) {
                     ESP_LOGW(kTag, "pairing cancellation failed asynchronously: status=%d error=%s", result.status,
@@ -2758,6 +2863,9 @@ void RemoteControlAgent::TaskMain() {
                 break;
             case CommandType::kRequestFirmwareUpdate:
                 firmware_update_requested_ = true;
+                break;
+            case CommandType::kReleaseDevice:
+                release_requested_ = true;
                 break;
             case CommandType::kShutdown:
                 shutdown_requested_ = true;
@@ -3020,6 +3128,23 @@ void RemoteControlAgent::TaskMain() {
                 }
             }
             pairing_requested_ = false;
+        }
+        if (release_requested_) {
+            release_requested_ = false;
+            if (!release_request.valid()) {
+                static constexpr uint8_t kEmptyBody[] = {'{', '}'};
+                Http3AsyncRequest request{};
+                request.method = "POST";
+                (void)AssignDevicePath(request.path, identity.device_id.data(), "/release");
+                request.headers = AsyncJsonHeaders(identity.credential.data());
+                request.body.assign(kEmptyBody, kEmptyBody + sizeof(kEmptyBody));
+                request.timeout_ms = kRequestTimeoutMs;
+                request.max_response_body_size = 1024U;
+                release_request = async_client->Submit(std::move(request));
+                if (!release_request.valid()) {
+                    SetReleaseState(host_ui::RemoteControlReleaseState::kFailed);
+                }
+            }
         }
 
         const TickType_t now_ticks = xTaskGetTickCount();

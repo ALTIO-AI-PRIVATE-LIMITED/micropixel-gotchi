@@ -54,6 +54,15 @@ class SystemDetailUi final {
     [[nodiscard]] bool RemoteControlVisible() const;
     [[nodiscard]] void* RemoteControlActionContext() const;
 
+    [[nodiscard]] std::expected<void, host_ui::SystemUiError> ShowSetupLocked(lv_obj_t* root,
+                                                                              const host_ui::SetupModel& model,
+                                                                              host_ui::SystemUiActionSink action_sink,
+                                                                              void* action_context);
+    void UpdateSetupLocked(const host_ui::SetupModel& model);
+    void LeaveSetup();
+    [[nodiscard]] bool SetupVisible() const;
+    [[nodiscard]] void* SetupActionContext() const;
+
     [[nodiscard]] std::expected<void, host_ui::SystemUiError> ShowAppManagementLocked(
         lv_obj_t* root, const host_ui::AppManagementModel& model, host_ui::SystemUiActionSink action_sink,
         void* action_context);
@@ -78,6 +87,7 @@ class SystemDetailUi final {
         kAppearance,
         kRemoteControl,
         kAppManagement,
+        kSetup,
     };
 
     struct AppBinding final {
@@ -98,6 +108,10 @@ class SystemDetailUi final {
     static void RemoteControlPairingEvent(lv_event_t* event);
     static void RemoteControlConfirmationCancelEvent(lv_event_t* event);
     static void RemoteControlConfirmOffEvent(lv_event_t* event);
+    static void RemoteControlResetEvent(lv_event_t* event);
+    static void RemoteControlConfirmResetEvent(lv_event_t* event);
+    template <host_ui::SystemUiActionType Type>
+    static void SetupActionEvent(lv_event_t* event);
     static void RemoteControlRenderAsync(void* context);
     static void AppManagementRenderAsync(void* context);
     static void AppManagementBackEvent(lv_event_t* event);
@@ -117,6 +131,14 @@ class SystemDetailUi final {
     void RenderAppearanceLocked();
     void RenderRemoteControlLocked();
     void DrawRemoteControlOffConfirmationLocked();
+    void DrawRemoteControlResetConfirmationLocked();
+    void DrawRemoteControlLinkLocked(lv_obj_t* scroll);
+    void RenderSetupLocked();
+    void DrawSetupWelcomeLocked(lv_obj_t* column);
+    void DrawSetupConnectingLocked(lv_obj_t* column);
+    void DrawSetupLinkLocked(lv_obj_t* page);
+    void DrawSetupDoneLocked(lv_obj_t* column);
+    void SetSetupExpiryTextLocked();
     void QueueRemoteControlRender();
     void RenderAppManagementLocked();
     void RenderAppManagementOverlayLocked(bool animate = true);
@@ -143,6 +165,9 @@ class SystemDetailUi final {
     host_ui::AppearanceModel appearance_model_{};
     host_ui::RemoteControlModel remote_control_model_{};
     host_ui::AppManagementModel app_management_model_{};
+    host_ui::SetupModel setup_model_{};
+    lv_obj_t* setup_expiry_label_{};
+    platform::lvgl::AnimatedDisplayRefresh setup_animation_refresh_{};
     host_ui::SystemUiActionSink action_sink_{};
     void* action_context_{};
     lv_obj_t* power_switch_{};
@@ -164,6 +189,7 @@ class SystemDetailUi final {
     int64_t app_management_probe_render_ready_us_{};
     bool app_management_probe_armed_{};
     bool remote_control_off_confirmation_visible_{};
+    bool remote_control_reset_confirmation_visible_{};
     bool remote_control_confirmation_rendered_{};
     bool remote_control_scroll_gesture_active_{};
     bool remote_control_render_pending_{};

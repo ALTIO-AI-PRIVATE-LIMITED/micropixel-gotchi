@@ -6,6 +6,7 @@
 #include <string>
 
 #include "host/controller/remote/firmware_release_notes.hpp"
+#include "host/controller/remote/remote_binding_policy.hpp"
 #include "host/controller/remote/remote_control_defaults.hpp"
 #include "host/controller/remote/remote_pairing_policy.hpp"
 #include "host/controller/remote/remote_reconnect_policy.hpp"
@@ -62,6 +63,35 @@ void TestPairingConsumedPolicy() {
     Check(!MatchesPairingConsumed(1, "", kPairing, "", kPairing), "no active session cannot consume");
     Check(!MatchesPairingConsumed(1, kSession, "", kSession, ""), "duplicate after clearing is ignored");
     Check(!MatchesPairingConsumed(1, "", "", kSession, kPairing), "missing IDs cannot consume");
+}
+
+void TestBindingFramePolicy() {
+    using micropixel::firmware::remote_control::MatchesSessionFrame;
+    constexpr auto kSession = "11111111-1111-4111-8111-111111111111";
+    constexpr auto kOther = "33333333-3333-4333-8333-333333333333";
+    Check(MatchesSessionFrame(1, kSession, kSession), "binding for the open session applies");
+    Check(!MatchesSessionFrame(1, kOther, kSession), "binding from a stale session is ignored");
+    Check(!MatchesSessionFrame(2, kSession, kSession), "binding with another protocol is ignored");
+    Check(!MatchesSessionFrame(1, "", ""), "binding without an open session is ignored");
+}
+
+void TestOwnerNameCopy() {
+    using micropixel::firmware::remote_control::CopyOwnerName;
+    std::array<char, 8U> name{};
+    Check(CopyOwnerName("Abilash", name.data(), name.size()) == 7U && std::string(name.data()) == "Abilash",
+          "an ASCII name that fits is copied");
+    Check(CopyOwnerName("Abilash S", name.data(), name.size()) == 7U && std::string(name.data()) == "Abilash",
+          "a long name is truncated to capacity");
+    Check(CopyOwnerName("Ab\ncd\x7f", name.data(), name.size()) == 4U && std::string(name.data()) == "Abcd",
+          "control characters are dropped");
+    // "Zoë" (o-diaeresis is two bytes) then a three-byte character that does not fit.
+    Check(CopyOwnerName("Zo\xc3\xab\xe4\xb8\x80\xe4\xb8\x80", name.data(), name.size()) == 7U,
+          "truncation keeps whole characters");
+    Check(CopyOwnerName("Bad\xc3", name.data(), name.size()) == 0U && name[0] == '\0',
+          "malformed UTF-8 yields an empty name");
+    Check(CopyOwnerName("\xed\xa0\x80", name.data(), name.size()) == 0U, "UTF-16 surrogates are rejected");
+    Check(CopyOwnerName("\xc0\xaf", name.data(), name.size()) == 0U, "overlong encodings are rejected");
+    Check(CopyOwnerName("", name.data(), name.size()) == 0U && name[0] == '\0', "an empty name stays empty");
 }
 
 void TestRuntimeSnapshotPolicy() {
@@ -125,6 +155,8 @@ int main() {
     TestRemoteControlDefaults();
     TestRemoteControlReconnectPolicy();
     TestPairingConsumedPolicy();
+    TestBindingFramePolicy();
+    TestOwnerNameCopy();
     TestRuntimeSnapshotPolicy();
     return 0;
 }

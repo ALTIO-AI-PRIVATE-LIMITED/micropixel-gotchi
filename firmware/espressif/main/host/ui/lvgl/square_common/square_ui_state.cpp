@@ -659,6 +659,50 @@ void SquareSystemUiState::LeaveRemoteControl() {
     system_detail_ui.LeaveRemoteControl();
 }
 
+std::expected<void, host_ui::SystemUiError> SquareSystemUiState::ShowSetup(const host_ui::SetupModel& model,
+                                                                           host_ui::SystemUiActionSink action_sink,
+                                                                           void* action_context) {
+    if (display == nullptr) {
+        return std::unexpected(host_ui::SystemUiError::kUnavailable);
+    }
+    UnbindHostPointerTouchSink();
+    input_router.ClearSystemActionSink(system_menu_ui.ActionContext());
+    system_menu_ui.Deactivate();
+    if (esp_lv_adapter_lock(-1) != ESP_OK) {
+        return std::unexpected(host_ui::SystemUiError::kRenderFailed);
+    }
+    SetHostPointerEnabledLocked(false);
+    lv_obj_t* page_root = system_detail_ui.SetupVisible() ? root : PrepareSystemPageRootLocked();
+    auto result =
+        page_root == nullptr
+            ? std::expected<void, host_ui::SystemUiError>(std::unexpected(host_ui::SystemUiError::kRenderFailed))
+            : system_detail_ui.ShowSetupLocked(page_root, model, action_sink, action_context);
+    SetHostPointerEnabledLocked(result.has_value());
+    esp_lv_adapter_unlock();
+    if (!result.has_value()) {
+        system_detail_ui.LeaveSetup();
+        return result;
+    }
+    BindPageInput(action_sink, action_context);
+    return {};
+}
+
+void SquareSystemUiState::UpdateSetup(const host_ui::SetupModel& model) {
+    if (!system_detail_ui.SetupVisible() || esp_lv_adapter_lock(-1) != ESP_OK) {
+        return;
+    }
+    system_detail_ui.UpdateSetupLocked(model);
+    esp_lv_adapter_unlock();
+}
+
+void SquareSystemUiState::LeaveSetup() {
+    if (!system_detail_ui.SetupVisible()) {
+        return;
+    }
+    UnbindPageInput(system_detail_ui.SetupActionContext());
+    system_detail_ui.LeaveSetup();
+}
+
 std::expected<void, host_ui::SystemUiError> SquareSystemUiState::ShowAppManagement(
     const host_ui::AppManagementModel& model, host_ui::SystemUiActionSink action_sink, void* action_context) {
     if (display == nullptr) {

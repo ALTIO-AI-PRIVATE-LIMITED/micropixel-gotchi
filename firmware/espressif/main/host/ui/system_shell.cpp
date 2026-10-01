@@ -215,6 +215,18 @@ void SystemShell::UpdateRemoteControl(const RemoteControlModel& model) { ui_.Upd
 
 void SystemShell::LeaveRemoteControl() { ui_.LeaveRemoteControl(); }
 
+std::expected<void, SystemUiError> SystemShell::ShowSetup(const SetupModel& model) {
+    if (action_queue_ == nullptr) {
+        return std::unexpected(SystemUiError::kUnavailable);
+    }
+    ResetActionQueue();
+    return ui_.ShowSetup(model, ReceiveAction, this);
+}
+
+void SystemShell::UpdateSetup(const SetupModel& model) { ui_.UpdateSetup(model); }
+
+void SystemShell::LeaveSetup() { ui_.LeaveSetup(); }
+
 std::expected<void, SystemUiError> SystemShell::ShowAppManagement(const AppManagementModel& model) {
     if (action_queue_ == nullptr) {
         return std::unexpected(SystemUiError::kUnavailable);

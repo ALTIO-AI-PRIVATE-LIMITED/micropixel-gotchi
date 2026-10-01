@@ -15,6 +15,7 @@ list(APPEND micropixel_sources
     "host/ui/lvgl/square_common/host_ui_theme.cpp"
     "host/ui/lvgl/square_common/power_management_ui.cpp"
     "host/ui/lvgl/square_common/remote_control_ui.cpp"
+    "host/ui/lvgl/square_common/setup_flow_ui.cpp"
     "host/ui/lvgl/square_common/square_ui_state.cpp"
     "host/ui/lvgl/square_common/square_system_ui.cpp"
     "host/ui/lvgl/square_common/status_layer_ui.cpp"

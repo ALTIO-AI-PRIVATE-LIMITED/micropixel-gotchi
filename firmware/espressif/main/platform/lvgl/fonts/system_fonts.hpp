@@ -18,5 +18,8 @@ using CommitLanguageSetting = bool (*)(void* context);
 void AbortSystemLanguageFont();
 // Boot-time convenience wrapper.
 [[nodiscard]] const lv_font_t* SystemFont(SystemFontRole role, const lv_font_t* fallback);
+// Large digits for codes read from across a table (5/3 of the title size). Created
+// on first use; call under the adapter lock. Falls back to the title font.
+[[nodiscard]] const lv_font_t* SystemDisplayFont();
 
 }  // namespace micropixel::platform::lvgl

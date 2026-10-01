@@ -16,6 +16,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "host/controller/control_dispatcher.hpp"
+#include "host/controller/remote/remote_binding_store.hpp"
 #include "host/controller/remote/remote_control_protocol.hpp"
 #include "host/controller/remote/remote_identity_store.hpp"
 #include "host/controller/remote/runtime_snapshot_policy.hpp"
@@ -52,6 +53,12 @@ class RemoteControlAgent final {
     [[nodiscard]] bool RequestPairingCode();
     [[nodiscard]] bool CancelPairingCode();
     [[nodiscard]] bool RequestFirmwareUpdate();
+    // Asks the control service to unlink this Gotchi from its owner. Needs an
+    // open control session; release_state reports the outcome.
+    [[nodiscard]] bool RequestRelease();
+    // Returns a finished release outcome to idle once it has been shown.
+    void AcknowledgeRelease();
+    [[nodiscard]] bool Bound() const;
     [[nodiscard]] host_ui::RemoteControlModel Snapshot() const;
     void CopySnapshot(host_ui::RemoteControlModel& destination) const;
     void CopyFirmwareReleaseNotes(std::span<char> destination, uint32_t revision) const;
@@ -77,6 +84,7 @@ class RemoteControlAgent final {
         kRequestPairingCode,
         kCancelPairingCode,
         kRequestFirmwareUpdate,
+        kReleaseDevice,
         kShutdown,
     };
 
@@ -126,6 +134,8 @@ class RemoteControlAgent final {
     void SetIdentityInSnapshot(const Identity& identity);
     void ClearPairingInSnapshot(const char* message, const char* pairing_id = nullptr);
     void RefreshPairingDeadline();
+    void ApplyBinding(bool bound, const char* owner_name);
+    void SetReleaseState(host_ui::RemoteControlReleaseState state);
     [[nodiscard]] bool LoadIdentity(Identity& identity) const;
     [[nodiscard]] bool SaveIdentity(const Identity& identity) const;
     [[nodiscard]] bool ClearIdentity(Identity& identity);
@@ -180,6 +190,7 @@ class RemoteControlAgent final {
     host::network::Network& network_;
     const device::BoardInfo& board_info_;
     RemoteIdentityStore identity_store_;
+    RemoteBindingStore binding_store_;
     mutable std::mutex model_mutex_;
     host_ui::RemoteControlModel model_{};
     mutable std::mutex diagnostics_mutex_;
@@ -217,6 +228,7 @@ class RemoteControlAgent final {
     bool pairing_requested_{};
     bool pairing_cancel_requested_{};
     bool firmware_update_requested_{};
+    bool release_requested_{};
     std::array<char, 256U> firmware_download_path_{};
     std::array<uint8_t, 32U> firmware_sha256_{};
     size_t firmware_size_{};

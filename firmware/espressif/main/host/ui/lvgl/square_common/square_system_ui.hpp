@@ -67,6 +67,11 @@ class SquareSystemUi final : public host_ui::SystemUi {
         void* action_context) override;
     void UpdateRemoteControl(const host_ui::RemoteControlModel& model) override;
     void LeaveRemoteControl() override;
+    [[nodiscard]] std::expected<void, host_ui::SystemUiError> ShowSetup(const host_ui::SetupModel& model,
+                                                                        host_ui::SystemUiActionSink action_sink,
+                                                                        void* action_context) override;
+    void UpdateSetup(const host_ui::SetupModel& model) override;
+    void LeaveSetup() override;
     [[nodiscard]] std::expected<void, host_ui::SystemUiError> ShowAppManagement(
         const host_ui::AppManagementModel& model, host_ui::SystemUiActionSink action_sink,
         void* action_context) override;

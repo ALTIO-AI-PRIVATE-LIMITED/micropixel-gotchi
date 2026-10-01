@@ -142,6 +142,11 @@ class SquareSystemUiState final {
         const host_ui::RemoteControlModel& model, host_ui::SystemUiActionSink action_sink, void* action_context);
     void UpdateRemoteControl(const host_ui::RemoteControlModel& model);
     void LeaveRemoteControl();
+    [[nodiscard]] std::expected<void, host_ui::SystemUiError> ShowSetup(const host_ui::SetupModel& model,
+                                                                        host_ui::SystemUiActionSink action_sink,
+                                                                        void* action_context);
+    void UpdateSetup(const host_ui::SetupModel& model);
+    void LeaveSetup();
 
     [[nodiscard]] std::expected<void, host_ui::SystemUiError> ShowAppManagement(
         const host_ui::AppManagementModel& model, host_ui::SystemUiActionSink action_sink, void* action_context);

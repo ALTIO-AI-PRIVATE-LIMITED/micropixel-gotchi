@@ -62,6 +62,13 @@ constexpr int64_t kBatterySamplePeriodUs = 1000000;
 constexpr int64_t kHallStatusSamplePeriodUs = 5LL * 1000LL * 1000LL;
 constexpr int64_t kWifiScanRefreshDelayUs = 10LL * 1000LL * 1000LL;
 constexpr int64_t kWifiScanRetryDelayUs = 1000LL * 1000LL;
+// First-run setup: how long "Connecting to cgotchi" waits before offering
+// retry or another network, how often a failed code request is retried, and
+// how long "All set" stays before the App Hall opens.
+constexpr int64_t kSetupConnectTimeoutUs = 30LL * 1000LL * 1000LL;
+constexpr int64_t kSetupCodeRetryUs = 5LL * 1000LL * 1000LL;
+constexpr int64_t kSetupDoneHoldUs = 5LL * 1000LL * 1000LL;
+constexpr int64_t kReleaseTimeoutUs = 20LL * 1000LL * 1000LL;
 constexpr TickType_t kPowerSuspendTimeout = pdMS_TO_TICKS(500U);
 constexpr TickType_t kShutdownRemoteStopTimeout = pdMS_TO_TICKS(500U);
 constexpr std::array<std::string_view, 5U> kBuiltinLocales{"en", "zh-CN", "zh-TW", "ja-JP", "ko-KR"};
@@ -497,7 +504,9 @@ bool SameRemoteControlModel(const host_ui::RemoteControlModel& left, const host_
            left.firmware_progress_percent == right.firmware_progress_percent &&
            left.firmware_update_state == right.firmware_update_state &&
            left.firmware_update_available == right.firmware_update_available &&
-           left.firmware_update_installable == right.firmware_update_installable;
+           left.firmware_update_installable == right.firmware_update_installable &&
+           left.owner_name == right.owner_name && left.session_ready == right.session_ready &&
+           left.bound == right.bound && left.release_state == right.release_state;
 }
 
 bool SameFirmwareUpdate(const host_ui::RemoteControlModel& left, const host_ui::RemoteControlModel& right) {
@@ -1249,6 +1258,181 @@ bool RunWifiSettings(host_ui::SystemShell& shell, device::Wifi& wifi, device::Ce
     }
 }
 
+bool SameSetupModel(const host_ui::SetupModel& left, const host_ui::SetupModel& right) {
+    return left.step == right.step && left.connect_failed == right.connect_failed && left.code == right.code &&
+           left.code_expires_seconds == right.code_expires_seconds && left.owner_name == right.owner_name &&
+           left.wifi_name == right.wifi_name;
+}
+
+struct SetupNetwork final {
+    std::array<char, device::kWifiSsidCapacity + 1U> ssid{};
+    bool connected{};
+};
+
+[[gnu::noinline]] SetupNetwork ReadSetupNetwork(device::Wifi& wifi) {
+    static MICROPIXEL_EXT_RAM_BSS device::WifiSnapshot snapshot;
+    snapshot.~WifiSnapshot();
+    new (&snapshot) device::WifiSnapshot(wifi.Snapshot());
+    SetupNetwork network{.connected = snapshot.connected};
+    const auto find_connected = [&network](const auto& networks, uint32_t count) {
+        for (uint32_t index = 0U; index < count && index < networks.size(); ++index) {
+            if (networks[index].connected) {
+                network.ssid = networks[index].ssid;
+                return true;
+            }
+        }
+        return false;
+    };
+    if (network.connected && !find_connected(snapshot.saved_networks, snapshot.saved_network_count)) {
+        (void)find_connected(snapshot.available_networks, snapshot.available_network_count);
+    }
+    return network;
+}
+
+enum class SetupWifiResult : uint8_t {
+    kConnected,
+    kBack,
+    kPowerTransition,
+    kFailed,
+};
+
+// The Wi-Fi step of first-run setup: the regular Wi-Fi page, opened on the
+// network list, that finishes as soon as a network the user chose connects.
+[[gnu::noinline]] SetupWifiResult RunSetupWifi(host_ui::SystemShell& shell, device::Wifi& wifi,
+                                               device::Cellular& cellular, host_ui::StatusLayerModel& status_model) {
+    struct Workspace {
+        device::WifiSnapshot snapshot;
+        host_ui::WifiSettingsModel model;
+    };
+    static MICROPIXEL_EXT_RAM_BSS Workspace workspace;
+    auto& snapshot = workspace.snapshot;
+    const auto read_snapshot = [&wifi, &snapshot]() {
+        snapshot.~WifiSnapshot();
+        new (&snapshot) device::WifiSnapshot(wifi.Snapshot());
+    };
+    const auto make_model = [&workspace = workspace](uint64_t ack) -> const host_ui::WifiSettingsModel& {
+        workspace.model.~WifiSettingsModel();
+        new (&workspace.model) host_ui::WifiSettingsModel(MakeWifiSettingsModel(workspace.snapshot, ack));
+        workspace.model.open_scan_view = true;
+        return workspace.model;
+    };
+    read_snapshot();
+    if (snapshot.available && !snapshot.enabled) {
+        (void)wifi.SetEnabled(true);
+        read_snapshot();
+    }
+    RefreshNetworkStatus(status_model, snapshot, cellular);
+    if (const auto shown = shell.ShowWifiSettings(make_model(0)); !shown) {
+        ESP_LOGE(kTag, "failed to show setup Wi-Fi: error=%u", static_cast<unsigned>(shown.error()));
+        return SetupWifiResult::kFailed;
+    }
+    // A network that was already connected when the page opened does not end
+    // the step; the user is here to pick another one.
+    bool accept_connection = !snapshot.connected;
+    bool awaiting_connection = false;
+    uint64_t command_ack_us = 0;
+    int64_t next_scan_request_us = esp_timer_get_time();
+    bool scan_cycle_active = snapshot.scanning;
+    const auto leave = [&](SetupWifiResult result) {
+        RefreshNetworkStatus(status_model, snapshot, cellular);
+        shell.LeaveWifiSettings();
+        return result;
+    };
+    for (;;) {
+        const TickType_t timeout = snapshot.enabled ? DeadlineWaitTimeout(next_scan_request_us) : portMAX_DELAY;
+        const auto action = shell.PollAction(std::min(timeout, pdMS_TO_TICKS(1000U)));
+        if (shell.PowerTransitionRequested()) {
+            return leave(SetupWifiResult::kPowerTransition);
+        }
+        bool acknowledge_switch = false;
+        if (action.has_value()) {
+            std::expected<void, device::WifiError> operation{};
+            switch (action->type) {
+                case host_ui::SystemUiActionType::kCloseWifiSettings:
+                case host_ui::SystemUiActionType::kCloseWifiNetworkScan:
+                    return leave(SetupWifiResult::kBack);
+                case host_ui::SystemUiActionType::kOpenWifiNetworkScan:
+                    next_scan_request_us = esp_timer_get_time();
+                    break;
+                case host_ui::SystemUiActionType::kSetWifiEnabled:
+                    command_ack_us = action->timestamp_us;
+                    acknowledge_switch = true;
+                    operation = wifi.SetEnabled(action->value != 0U);
+                    break;
+                case host_ui::SystemUiActionType::kConnectSavedWifi:
+                    awaiting_connection = true;
+                    accept_connection = false;
+                    operation = wifi.ConnectSaved(action->text.data());
+                    break;
+                case host_ui::SystemUiActionType::kConnectNewWifi:
+                    awaiting_connection = true;
+                    accept_connection = false;
+                    operation = wifi.Connect(action->text.data(), action->secret.data());
+                    break;
+                case host_ui::SystemUiActionType::kDisconnectWifi:
+                    operation = wifi.Disconnect();
+                    break;
+                case host_ui::SystemUiActionType::kForgetWifi:
+                    operation = wifi.Forget(action->text.data());
+                    break;
+                default:
+                    break;
+            }
+            if (!operation) {
+                ESP_LOGW(kTag, "setup Wi-Fi action=%u failed: error=%u", static_cast<unsigned>(action->type),
+                         static_cast<unsigned>(operation.error()));
+            }
+        }
+        const bool was_scanning = snapshot.scanning;
+        const bool was_connected = snapshot.connected;
+        const auto was_state = snapshot.connection_state;
+        const uint32_t was_available = snapshot.available_network_count;
+        const uint32_t was_saved = snapshot.saved_network_count;
+        const bool was_pending = snapshot.control_pending;
+        const bool was_enabled = snapshot.enabled;
+        read_snapshot();
+        if (acknowledge_switch || was_scanning != snapshot.scanning || was_connected != snapshot.connected ||
+            was_state != snapshot.connection_state || was_available != snapshot.available_network_count ||
+            was_saved != snapshot.saved_network_count || was_pending != snapshot.control_pending ||
+            was_enabled != snapshot.enabled || (action.has_value() &&
+                                                action->type == host_ui::SystemUiActionType::kNetworkStateChanged)) {
+            RefreshNetworkStatus(status_model, snapshot, cellular);
+            shell.UpdateWifiSettings(make_model(command_ack_us));
+        }
+        if (awaiting_connection && (!snapshot.connected ||
+                                    snapshot.connection_state == device::WifiConnectionState::kConnecting)) {
+            accept_connection = true;
+        }
+        if (accept_connection && snapshot.connected &&
+            snapshot.connection_state == device::WifiConnectionState::kConnected) {
+            ESP_LOGI(kTag, "setup Wi-Fi connected");
+            return leave(SetupWifiResult::kConnected);
+        }
+        if (!snapshot.enabled) {
+            continue;
+        }
+        const int64_t now_us = esp_timer_get_time();
+        if (snapshot.scanning) {
+            scan_cycle_active = true;
+            continue;
+        }
+        if (scan_cycle_active) {
+            scan_cycle_active = false;
+            next_scan_request_us = now_us + kWifiScanRefreshDelayUs;
+            continue;
+        }
+        if (now_us < next_scan_request_us ||
+            snapshot.connection_state == device::WifiConnectionState::kConnecting || snapshot.control_pending) {
+            continue;
+        }
+        if (const auto scan = wifi.RequestScan(); !scan) {
+            next_scan_request_us = now_us + kWifiScanRetryDelayUs;
+        } else {
+            next_scan_request_us = now_us + kWifiScanRefreshDelayUs;
+        }
+    }
+}
+
 bool RunFirmwareUpdate(host_ui::SystemShell& shell, remote_control::RemoteControlAgent& remote_control,
                        RemoteCommandPump* command_pump) {
     host_ui::RemoteControlModel remote_model = remote_control.Snapshot();
@@ -1376,9 +1560,62 @@ bool RunSystemInformation(host_ui::SystemShell& shell, remote_control::RemoteCon
     }
 }
 
+// Removes every saved network so setup starts from an empty Wi-Fi list.
+// Wi-Fi runs one operation at a time, so each Forget waits for the last.
+[[gnu::noinline]] void ForgetSavedWifiNetworks(device::Wifi& wifi) {
+    static MICROPIXEL_EXT_RAM_BSS device::WifiSnapshot snapshot;
+    const int64_t deadline_us = esp_timer_get_time() + 10LL * 1000LL * 1000LL;
+    while (esp_timer_get_time() < deadline_us) {
+        snapshot.~WifiSnapshot();
+        new (&snapshot) device::WifiSnapshot(wifi.Snapshot());
+        if (snapshot.saved_network_count == 0U) {
+            return;
+        }
+        if (!snapshot.control_pending) {
+            const auto forgotten = wifi.Forget(snapshot.saved_networks[0].ssid.data());
+            if (!forgotten && forgotten.error() != device::WifiError::kBusy) {
+                ESP_LOGW(kTag, "saved Wi-Fi network could not be forgotten: error=%u",
+                         static_cast<unsigned>(forgotten.error()));
+                return;
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(100U));
+    }
+    ESP_LOGW(kTag, "timed out forgetting saved Wi-Fi networks");
+}
+
+// Settings -> Remote Control -> Reset device: unlink from the account on the
+// control service, then forget Wi-Fi. Returns true when the Gotchi was reset.
+[[gnu::noinline]] bool ResetDevice(host_ui::SystemShell& shell, device::Wifi& wifi,
+                                   remote_control::RemoteControlAgent& remote_control,
+                                   host_ui::RemoteControlModel& model) {
+    if (!remote_control.RequestRelease()) {
+        ESP_LOGW(kTag, "reset refused: the control service is not connected");
+        return false;
+    }
+    remote_control.CopySnapshot(model);
+    shell.UpdateRemoteControl(model);
+    // The command pump is not run here: losing the link unwinds System UI,
+    // and Wi-Fi must be forgotten first.
+    const int64_t deadline_us = esp_timer_get_time() + kReleaseTimeoutUs;
+    while (model.release_state == host_ui::RemoteControlReleaseState::kPending &&
+           esp_timer_get_time() < deadline_us) {
+        (void)shell.PollAction(pdMS_TO_TICKS(250U));
+        remote_control.CopySnapshot(model);
+    }
+    if (model.release_state != host_ui::RemoteControlReleaseState::kSucceeded) {
+        ESP_LOGW(kTag, "reset failed: release state=%u", static_cast<unsigned>(model.release_state));
+        return false;
+    }
+    ESP_LOGI(kTag, "Gotchi released from its account; forgetting Wi-Fi");
+    ForgetSavedWifiNetworks(wifi);
+    remote_control.AcknowledgeRelease();
+    return true;
+}
+
 bool RunRemoteControlSettings(host_ui::SystemShell& shell, host_ui::SystemSettingsStore& settings_store,
-                              remote_control::RemoteControlAgent& remote_control, host_ui::RemoteControlModel& model,
-                              RemoteCommandPump* command_pump) {
+                              remote_control::RemoteControlAgent& remote_control, device::Wifi& wifi,
+                              host_ui::RemoteControlModel& model, RemoteCommandPump* command_pump) {
     const auto show_result = shell.ShowRemoteControl(model);
     if (!show_result) {
         ESP_LOGE(kTag, "failed to show Remote Control: error=%u", static_cast<unsigned>(show_result.error()));
@@ -1387,6 +1624,7 @@ bool RunRemoteControlSettings(host_ui::SystemShell& shell, host_ui::SystemSettin
     for (;;) {
         const auto action = shell.PollAction(pdMS_TO_TICKS(250U));
         if (command_pump != nullptr && command_pump->Process()) {
+            remote_control.AcknowledgeRelease();
             shell.LeaveRemoteControl();
             return true;
         }
@@ -1400,8 +1638,22 @@ bool RunRemoteControlSettings(host_ui::SystemShell& shell, host_ui::SystemSettin
         }
         if (action->type == host_ui::SystemUiActionType::kCloseRemoteControl ||
             action->type == host_ui::SystemUiActionType::kSuspendToHall) {
+            remote_control.AcknowledgeRelease();
             shell.LeaveRemoteControl();
             return true;
+        }
+        if (action->type == host_ui::SystemUiActionType::kResetDevice) {
+            if (ResetDevice(shell, wifi, remote_control, model)) {
+                shell.LeaveRemoteControl();
+                // Unlinked: return to the App Hall, which opens first-run setup.
+                if (command_pump != nullptr) {
+                    command_pump->unwind_requested = true;
+                }
+                return true;
+            }
+            model = remote_control.Snapshot();
+            shell.UpdateRemoteControl(model);
+            continue;
         }
         if (action->type == host_ui::SystemUiActionType::kSetRemoteControlEnabled) {
             const bool enabled = action->value != 0U;
@@ -1932,7 +2184,7 @@ bool RunSystemMenu(host_ui::SystemShell& shell, device::Battery& battery, device
                     }
                 } else if (action->value == static_cast<uint32_t>(host_ui::SystemMenuItem::kRemoteControl)) {
                     shell.LeaveSystemMenu();
-                    if (!RunRemoteControlSettings(shell, settings_store, remote_control, remote_control_model,
+                    if (!RunRemoteControlSettings(shell, settings_store, remote_control, wifi, remote_control_model,
                                                   command_pump)) {
                         return false;
                     }
@@ -2274,7 +2526,7 @@ class ActiveHost final {
 
     [[nodiscard]] bool CanLaunch() const {
         const AppLifecycleState lifecycle = app_controller_.state();
-        return staged_install_token_ == 0U && catalog_.count != 0U &&
+        return staged_install_token_ == 0U && catalog_.count != 0U && remote_control_.Bound() &&
                (lifecycle == AppLifecycleState::kNotRunning || lifecycle == AppLifecycleState::kSuspended);
     }
 
@@ -2753,6 +3005,10 @@ class ActiveHost final {
                 return false;
             }
             case control::HostCommandType::kStartApp: {
+                if (!remote_control_.Bound()) {
+                    SubmitRemoteResult(result, false, "device_not_linked");
+                    return false;
+                }
                 const std::optional<uint32_t> app_index = FindApp(command.app_id.data());
                 if (!app_index.has_value()) {
                     SubmitRemoteResult(result, false, "app_not_found");
@@ -2954,6 +3210,10 @@ class ActiveHost final {
         if (!modal && shell_.PowerTransitionRequested()) {
             return true;
         }
+        // Removed from its account (from the app): leave Settings for setup.
+        if (!modal && !remote_control_.Bound()) {
+            return true;
+        }
         if (!modal && ReadFirmwareUpdate(remote_control_).in_progress) {
             return true;
         }
@@ -2995,6 +3255,175 @@ class ActiveHost final {
         hall_detail_ = detail;
     }
 
+    // Commands wait for a linked Gotchi. Screen capture stays available so a
+    // developer can see the setup screens.
+    void RejectCommandsDuringSetup() {
+        auto& command = remote_command_workspace_;
+        while (controls_.PollHostCommand(command)) {
+            if (command.type == control::HostCommandType::kCaptureScreen) {
+                (void)ProcessRemoteCommand(command);
+                continue;
+            }
+            auto& result = remote_result_workspace_;
+            result = {};
+            result.command_id = command.command_id;
+            result.source = command.source;
+            if (command.type == control::HostCommandType::kInstallApp) {
+                heap_caps_free(command.package_data);
+                controls_.EndInstallActivity(command.source, command.command_id.data(), "device_not_linked");
+            }
+            ESP_LOGI(kTag, "rejected Host command during setup: type=%u", static_cast<unsigned>(command.type));
+            SubmitRemoteResult(result, false, "device_not_linked");
+        }
+    }
+
+    void EnableRemoteControlForSetup() {
+        remote_control_.CopySnapshot(setup_remote_);
+        if (setup_remote_.enabled) {
+            return;
+        }
+        if (!remote_control_.SetEnabled(true)) {
+            ESP_LOGW(kTag, "Remote Control could not be enabled for setup");
+        }
+        remote_control_.CopySnapshot(setup_remote_);
+        if (settings_store_.ready() && !settings_store_.SaveRemoteControl(setup_remote_)) {
+            ESP_LOGW(kTag, "Remote Control enabled state could not be persisted");
+        }
+    }
+
+    // First-run setup, shown instead of the App Hall until the Gotchi is linked
+    // to an account: Welcome -> Wi-Fi -> Connecting -> Link (code + QR) -> All set.
+    // There is no way past it. Returns true to re-enter the Hall state.
+    [[nodiscard]] bool RunSetup() {
+        ESP_LOGI(kTag, "first-run setup: the Gotchi is not linked to an account");
+        EnableRemoteControlForSetup();
+        auto& model = setup_model_;
+        auto& remote = setup_remote_;
+        model = {};
+        SetupNetwork network = ReadSetupNetwork(wifi_);
+        model.step = network.connected ? host_ui::SetupStep::kConnecting : host_ui::SetupStep::kWelcome;
+        int64_t connecting_since_us = esp_timer_get_time();
+        int64_t next_code_request_us = 0;
+        int64_t done_since_us = 0;
+        bool shown = false;
+        bool open_wifi = false;
+        const auto start_connecting = [&]() {
+            model.step = host_ui::SetupStep::kConnecting;
+            model.connect_failed = false;
+            connecting_since_us = esp_timer_get_time();
+            remote_control_.NotifyNetworkChanged();
+        };
+        for (;;) {
+            if (shell_.PowerTransitionRequested()) {
+                if (shown) shell_.LeaveSetup();
+                return true;
+            }
+            if (open_wifi) {
+                open_wifi = false;
+                if (shown) {
+                    shell_.LeaveSetup();
+                    shown = false;
+                }
+                switch (RunSetupWifi(shell_, wifi_, cellular_, status_model_)) {
+                    case SetupWifiResult::kConnected:
+                        start_connecting();
+                        break;
+                    case SetupWifiResult::kPowerTransition:
+                        return true;
+                    case SetupWifiResult::kBack:
+                    case SetupWifiResult::kFailed:
+                        network = ReadSetupNetwork(wifi_);
+                        if (network.connected) {
+                            start_connecting();
+                        } else {
+                            model.step = host_ui::SetupStep::kWelcome;
+                        }
+                        break;
+                }
+            }
+
+            const int64_t now_us = esp_timer_get_time();
+            remote_control_.CopySnapshot(remote);
+            network = ReadSetupNetwork(wifi_);
+            if (remote.bound) {
+                if (model.step != host_ui::SetupStep::kDone) {
+                    ESP_LOGI(kTag, "first-run setup: linked to an account");
+                    done_since_us = now_us;
+                }
+                model.step = host_ui::SetupStep::kDone;
+                model.owner_name = remote.owner_name;
+            } else if (model.step == host_ui::SetupStep::kDone) {
+                start_connecting();
+            } else if (model.step == host_ui::SetupStep::kConnecting) {
+                if (remote.session_ready) {
+                    model.step = host_ui::SetupStep::kLink;
+                    model.connect_failed = false;
+                } else if (now_us - connecting_since_us >= kSetupConnectTimeoutUs) {
+                    model.connect_failed = true;
+                }
+            } else if (model.step == host_ui::SetupStep::kLink) {
+                if (!remote.session_ready) {
+                    start_connecting();
+                } else if (!remote.pairing_code_available && !remote.pairing_code_pending &&
+                           now_us >= next_code_request_us) {
+                    (void)remote_control_.RequestPairingCode();
+                    next_code_request_us = now_us + kSetupCodeRetryUs;
+                }
+            }
+            const bool code_visible = model.step == host_ui::SetupStep::kLink && remote.pairing_code_available;
+            model.code = code_visible ? remote.pairing_code : decltype(model.code){};
+            model.code_expires_seconds = code_visible ? remote.pairing_expires_seconds : 0U;
+            model.wifi_name = network.ssid;
+
+            if (!shown) {
+                if (const auto result = shell_.ShowSetup(model); !result) {
+                    ESP_LOGE(kTag, "failed to show setup: error=%u", static_cast<unsigned>(result.error()));
+                    return false;
+                }
+                shown = true;
+                setup_shown_model_ = model;
+            } else if (!SameSetupModel(setup_shown_model_, model)) {
+                shell_.UpdateSetup(model);
+                setup_shown_model_ = model;
+            }
+            if (model.step == host_ui::SetupStep::kDone && now_us - done_since_us >= kSetupDoneHoldUs) {
+                shell_.LeaveSetup();
+                return true;
+            }
+
+            const auto action = shell_.PollAction(pdMS_TO_TICKS(250U));
+            if (!remote.bound) {
+                RejectCommandsDuringSetup();
+            }
+            if (!action.has_value()) {
+                continue;
+            }
+            switch (action->type) {
+                case host_ui::SystemUiActionType::kSetupStart:
+                    if (network.connected) {
+                        start_connecting();
+                    } else {
+                        open_wifi = true;
+                    }
+                    break;
+                case host_ui::SystemUiActionType::kSetupRetry:
+                    start_connecting();
+                    break;
+                case host_ui::SystemUiActionType::kSetupChangeWifi:
+                    open_wifi = true;
+                    break;
+                case host_ui::SystemUiActionType::kSetupFinish:
+                    if (remote.bound) {
+                        shell_.LeaveSetup();
+                        return true;
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
     [[nodiscard]] bool RunHall() {
         if (shell_.PowerTransitionRequested()) {
             return true;
@@ -3006,6 +3435,9 @@ class ActiveHost final {
         }
         if (shell_.PowerTransitionRequested()) {
             return true;
+        }
+        if (!remote_control_.Bound()) {
+            return RunSetup();
         }
         if (!ShowCurrentHall()) {
             return false;
@@ -3073,6 +3505,9 @@ class ActiveHost final {
             }
             const auto update = ReadFirmwareUpdate(remote_control_);
             if (update.in_progress || update.available != hall_firmware_update_available_) {
+                return true;
+            }
+            if (!remote_control_.Bound()) {
                 return true;
             }
             if (!pending_action.has_value()) {
@@ -3790,6 +4225,9 @@ class ActiveHost final {
     control::HostResult pending_start_result_{};
     TickType_t pending_start_deadline_ticks_{};
     bool pending_start_active_{};
+    host_ui::SetupModel setup_model_{};
+    host_ui::SetupModel setup_shown_model_{};
+    host_ui::RemoteControlModel setup_remote_{};
 };
 
 }  // namespace
