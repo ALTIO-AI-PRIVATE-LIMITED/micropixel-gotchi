@@ -28,7 +28,19 @@ int32_t SensorPeripheral::Start(device::PeripheralChannelId channel, uint32_t in
 }
 
 int32_t SensorPeripheral::Read(device::PeripheralChannelId channel, device::SensorValues& values_out) {
-    return peripheral_.Read(channel, values_out);
+    const int32_t status = peripheral_.Read(channel, values_out);
+    if (status == MICROPIXEL_STATUS_OK) {
+        // The sensor sits on the back of the board, turned for the portrait
+        // panel: raw X points to the bottom of the landscape screen, raw Y to
+        // its left and raw Z into it. Apps expect X right, Y up, Z out of the
+        // screen (measured: lying face up reads raw Z = -1 g).
+        const float raw_x = values_out.values[0];
+        const float raw_y = values_out.values[1];
+        values_out.values[0] = -raw_y;
+        values_out.values[1] = -raw_x;
+        values_out.values[2] = -values_out.values[2];
+    }
+    return status;
 }
 
 void SensorPeripheral::Stop(device::PeripheralChannelId channel) { peripheral_.Stop(channel); }

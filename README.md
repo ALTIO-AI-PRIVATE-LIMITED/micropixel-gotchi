@@ -84,9 +84,10 @@ bash tools/s3.sh flash-apps gotchi /dev/cu.usbmodemXXXX
 
 The build directory must not contain spaces; an ESP-IDF component's patch step fails on such paths.
 
-Status: the firmware boots on the board, the App Hall renders at 296x240 and the stock Apps run. Panel colour
-order, touch direction and accelerometer axes still need checking on the device; colour order is
-`kColorOrder` in [`display_hardware.cpp`](firmware/espressif/main/platform/boards/cheeko-gotchi/display_hardware.cpp).
+Status: the firmware boots on the board, the App Hall renders at 296x240 and the stock Apps run. Display,
+colour order and touch are confirmed on the device. The accelerometer is mounted on the back of the board, turned
+for the portrait panel; `sensor_peripheral.cpp` rotates it into the app convention (X right, Y up, Z out of the
+screen), measured on the device.
 
 ## Project
 
