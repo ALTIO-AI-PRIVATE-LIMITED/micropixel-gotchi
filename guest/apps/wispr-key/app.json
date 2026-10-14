@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "app_id": "cheeko.wispr-key",
+  "version": "0.2.0",
+  "threading": "none",
+  "title": "WisprKey Pro",
+  "sources": [
+    "main.cpp"
+  ],
+  "requirements": {
+    "schema_version": 1,
+    "display": {
+      "layouts": [
+        "square",
+        "portrait",
+        "landscape"
+      ],
+      "min_width": 240,
+      "min_height": 240
+    },
+    "required": [],
+    "optional": [
+      "audio.output",
+      "input.keys",
+      "input.touch"
+    ],
+    "any_of": [],
+    "services": {}
+  }
+}
