@@ -39,6 +39,10 @@ inline constexpr gpio_num_t kI2sMasterClock = GPIO_NUM_5;
 inline constexpr gpio_num_t kI2sBitClock = GPIO_NUM_15;
 inline constexpr gpio_num_t kI2sWordSelect = GPIO_NUM_16;
 inline constexpr gpio_num_t kI2sDataOut = GPIO_NUM_6;
+// ES7210 SDOUT; the ADC shares MCLK/BCLK/WS with the ES8311 as a slave.
+inline constexpr gpio_num_t kI2sDataIn = GPIO_NUM_7;
+inline constexpr uint8_t kSpeakerCodecAddress = 0x18U;
+inline constexpr uint8_t kMicrophoneAdcAddress = 0x40U;
 // NS4150B class-D enable, active high with a pull-down on the board.
 inline constexpr gpio_num_t kAmplifierEnable = GPIO_NUM_4;
 

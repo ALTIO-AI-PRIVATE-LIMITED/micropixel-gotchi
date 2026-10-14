@@ -120,7 +120,8 @@ void FirmwareApp::Run() {
     // buffers even when remote control is disabled.
     static MICROPIXEL_EXT_RAM_BSS device::DeviceServices devices(
         *services.graphics, services.board_info.display, *services.input, *services.audio, *services.random,
-        *services.devices, *services.sensors, *services.gpio, *services.haptics, *services.battery);
+        *services.devices, *services.sensors, *services.gpio, *services.haptics, *services.battery,
+        *services.hid_keyboard, *services.microphone, *services.peer_radio);
     logging::SystemLogBuffer& system_logs = logging::SystemLogs();
     static MICROPIXEL_EXT_RAM_BSS control::ControlDispatcher controls(
         [](void* context, const char* app_id) {

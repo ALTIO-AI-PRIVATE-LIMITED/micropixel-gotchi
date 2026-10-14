@@ -349,6 +349,7 @@ menu "MicroPixel board backends"
     config MICROPIXEL_LVGL_PARTIAL_BUFFER_HEIGHT
         int "LVGL partial draw buffer height"
         range 30 40 if MICROPIXEL_BOARD_SZPI_ESP32S3
+        range 20 40 if MICROPIXEL_BOARD_CHEEKO_GOTCHI
         range 40 40 if IDF_TARGET_ESP32S3
         range 20 720
         default 40 if IDF_TARGET_ESP32S3
@@ -358,7 +359,9 @@ menu "MicroPixel board backends"
             Larger values reduce repeated object traversal but require memory
             proportional to the selected board's display width and pixel format.
             SZPI supports 30 to 40 rows to balance display throughput against
-            internal SRAM headroom for networking and Guest tasks.
+            internal SRAM headroom for networking and Guest tasks. Cheeko Gotchi
+            goes down to 20 rows so Wi-Fi, BLE and full-duplex audio can run
+            beside a Guest.
 
     config MICROPIXEL_LVGL_PARTIAL_BUFFER_PSRAM
         bool "Place the LVGL partial draw buffer in PSRAM"

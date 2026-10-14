@@ -3,10 +3,30 @@
 # 80 MHz, the 16 MiB partition table and the USB Serial/JTAG console.
 CONFIG_MICROPIXEL_BOARD_CHEEKO_GOTCHI=y
 
-# One 296 x 40 RGB565 strip in internal SRAM feeds the 40 MHz SPI panel.
-CONFIG_MICROPIXEL_LVGL_PARTIAL_BUFFER_HEIGHT=40
+# One 296 x 20 RGB565 strip in internal SRAM feeds the 40 MHz SPI panel; the
+# walkie-talkie needs the other half of it for Wi-Fi, BLE and full-duplex audio.
+CONFIG_MICROPIXEL_LVGL_PARTIAL_BUFFER_HEIGHT=20
 # CONFIG_MICROPIXEL_LVGL_PARTIAL_BUFFER_PSRAM is not set
 
 # cgotchi store: apps installed with storeRelease must carry this key's signature.
 CONFIG_MICROPIXEL_STORE_SIGNING_KID="cgotchi-store-v1"
 CONFIG_MICROPIXEL_STORE_PUBLIC_KEY_DER_BASE64="MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2ImPmiJAWi9e6UBBxterspzUYG/Zwl+/4QEN8CcAgqBMb39ljU/s20ltKDGbMUleir2Ym0cewBt7RQa4N3wW1w=="
+
+# Bluetooth LE keyboard for the WisprKey App (push-to-talk for Wispr Flow).
+# NimBLE peripheral only, one link, host allocations in PSRAM. The radio is
+# started on first use by an App, so other Apps keep the internal SRAM.
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
+CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL=y
+CONFIG_BT_NIMBLE_NVS_PERSIST=y
+CONFIG_BT_NIMBLE_HID_SERVICE=y
+CONFIG_BT_NIMBLE_SVC_HID_MAX_RPTS=5
+# macOS (and Karabiner device rules) identify the keyboard by the DIS PnP ID.
+CONFIG_BT_NIMBLE_SVC_DIS_PNP_ID=y
+CONFIG_BT_NIMBLE_SVC_DIS_MANUFACTURER_NAME=y
+CONFIG_BT_NIMBLE_SVC_DIS_SERIAL_NUMBER=y
+# Key reports are a hot path; keep NimBLE's per-notify INFO lines out of the log.
+CONFIG_BT_NIMBLE_LOG_LEVEL_WARNING=y

@@ -29,6 +29,8 @@ list(APPEND micropixel_sources
     "runtime/services/direct_surface_service.cpp"
     "runtime/services/gpio_service.cpp"
     "runtime/services/haptics_service.cpp"
+    "runtime/services/microphone_service.cpp"
+    "runtime/services/peer_radio_service.cpp"
     "runtime/services/raster_service.cpp"
     "runtime/services/sensor_service.cpp"
     "runtime/services/timer_service.cpp"
