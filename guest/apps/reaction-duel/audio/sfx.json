@@ -1,0 +1,113 @@
+{
+  "schema_version": 2,
+  "sample_rate_hz": 16000,
+  "cpp_namespace": "reaction_duel_sfx",
+  "header_guard": "MICROPIXEL_REACTION_DUEL_SFX_PROFILES_HPP",
+  "reference_effect": "go",
+  "reference_momentary_rms_dbfs": -12.0,
+  "effects": {
+    "go": {
+      "max_rate_hz": 1.0,
+      "target_relative_db": 0.0,
+      "tones": [
+        {
+          "waveform": "triangle",
+          "frequency_hz": 880,
+          "duration_ms": 160,
+          "volume_per_mille": 435,
+          "attack_ms": 2,
+          "release_ms": 53,
+          "delay_ms": 0
+        }
+      ]
+    },
+    "point": {
+      "max_rate_hz": 1.0,
+      "target_relative_db": -2.0,
+      "tones": [
+        {
+          "waveform": "triangle",
+          "frequency_hz": 659,
+          "duration_ms": 70,
+          "volume_per_mille": 345,
+          "attack_ms": 2,
+          "release_ms": 23,
+          "delay_ms": 0
+        },
+        {
+          "waveform": "triangle",
+          "frequency_hz": 988,
+          "duration_ms": 110,
+          "volume_per_mille": 345,
+          "attack_ms": 2,
+          "release_ms": 36,
+          "delay_ms": 80
+        }
+      ]
+    },
+    "foul": {
+      "max_rate_hz": 1.0,
+      "target_relative_db": -2.0,
+      "tones": [
+        {
+          "waveform": "triangle",
+          "frequency_hz": 175,
+          "duration_ms": 220,
+          "volume_per_mille": 342,
+          "attack_ms": 2,
+          "release_ms": 73,
+          "delay_ms": 0
+        }
+      ]
+    },
+    "win": {
+      "max_rate_hz": 0.5,
+      "target_relative_db": -1.0,
+      "tones": [
+        {
+          "waveform": "triangle",
+          "frequency_hz": 523,
+          "duration_ms": 100,
+          "volume_per_mille": 386,
+          "attack_ms": 2,
+          "release_ms": 33,
+          "delay_ms": 0
+        },
+        {
+          "waveform": "triangle",
+          "frequency_hz": 659,
+          "duration_ms": 100,
+          "volume_per_mille": 386,
+          "attack_ms": 2,
+          "release_ms": 33,
+          "delay_ms": 120
+        },
+        {
+          "waveform": "triangle",
+          "frequency_hz": 784,
+          "duration_ms": 100,
+          "volume_per_mille": 386,
+          "attack_ms": 2,
+          "release_ms": 33,
+          "delay_ms": 240
+        },
+        {
+          "waveform": "triangle",
+          "frequency_hz": 1047,
+          "duration_ms": 260,
+          "volume_per_mille": 386,
+          "attack_ms": 2,
+          "release_ms": 86,
+          "delay_ms": 360
+        }
+      ]
+    }
+  },
+  "limits": {
+    "peak_dbfs_max": -3.0,
+    "repetition_exposure_dbfs_max": -18.0,
+    "high_frequency_ratio_max": 0.1,
+    "transient_delta_relative_db_max": -6.0,
+    "momentary_tolerance_db": 1.0
+  }
+}

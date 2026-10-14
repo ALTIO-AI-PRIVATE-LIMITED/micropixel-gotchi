@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "app_id": "cheeko.focus-timer",
+  "version": "0.1.0",
+  "threading": "none",
+  "title": "Focus Timer",
+  "sources": [
+    "main.cpp"
+  ],
+  "requirements": {
+    "schema_version": 1,
+    "display": {
+      "layouts": [
+        "square",
+        "portrait",
+        "landscape"
+      ],
+      "min_width": 240,
+      "min_height": 240
+    },
+    "required": [],
+    "optional": [
+      "audio.output",
+      "input.keys",
+      "input.touch"
+    ],
+    "any_of": [],
+    "services": {}
+  }
+}
