@@ -3,6 +3,9 @@
 #include "runtime/service_binding.hpp"
 #include "sdk/gpio.hpp"
 #include "sdk/haptics.hpp"
+#include "sdk/hid_keyboard.hpp"
+#include "sdk/microphone.hpp"
+#include "sdk/peer_radio.hpp"
 #include "sdk/power_info.hpp"
 #include "sdk/sensors.hpp"
 
@@ -20,6 +23,35 @@ ServiceCache sensors_service;
 ServiceCache gpio_service;
 ServiceCache haptics_service;
 ServiceCache power_info_service;
+ServiceCache hid_keyboard_service;
+
+int32_t OpenHidKeyboardService() {
+    return OpenService(hid_keyboard_service, MICROPIXEL_SERVICE_HID_KEYBOARD, MICROPIXEL_HID_KEYBOARD_INTERFACE_MAJOR,
+                       MICROPIXEL_HID_KEYBOARD_INTERFACE_MINOR);
+}
+
+ServiceCache microphone_service;
+
+int32_t OpenMicrophoneService() {
+    return OpenService(microphone_service, MICROPIXEL_SERVICE_MICROPHONE, MICROPIXEL_MICROPHONE_INTERFACE_MAJOR,
+                       MICROPIXEL_MICROPHONE_INTERFACE_MINOR);
+}
+
+ServiceCache peer_radio_service;
+
+int32_t OpenPeerRadioService() {
+    return OpenService(peer_radio_service, MICROPIXEL_SERVICE_PEER_RADIO, MICROPIXEL_PEER_RADIO_INTERFACE_MAJOR,
+                       MICROPIXEL_PEER_RADIO_INTERFACE_MINOR);
+}
+
+micropixel::Result<void> PeerRadioVoid(uint32_t method_id, const void* request, uint32_t request_size) {
+    int32_t status = OpenPeerRadioService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(peer_radio_service, method_id, request, request_size);
+    }
+    return status == MICROPIXEL_STATUS_OK ? micropixel::Result<void>{}
+                                          : micropixel::Result<void>{micropixel::unexpected(ErrorFromStatus(status))};
+}
 
 }  // namespace
 
@@ -476,6 +508,224 @@ Result<PowerState> PowerInfo::Get(DeviceId device) const {
                       (response.flags & MICROPIXEL_POWER_STATE_CHARGING) != 0U,
                       (response.flags & MICROPIXEL_POWER_STATE_DISCHARGING) != 0U,
                       (response.flags & MICROPIXEL_POWER_STATE_EXTERNAL_CONNECTED) != 0U};
+}
+
+Result<HidKeyboardState> HidKeyboard::State() const {
+    int32_t status = OpenHidKeyboardService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_hid_keyboard_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_GET_STATE, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    constexpr uint32_t kKnownFlags = MICROPIXEL_HID_KEYBOARD_STATE_AVAILABLE | MICROPIXEL_HID_KEYBOARD_STATE_STARTED |
+                                     MICROPIXEL_HID_KEYBOARD_STATE_ADVERTISING |
+                                     MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED;
+    if (response_size < sizeof(response) || response.size < sizeof(response) || response.reserved0 != 0U ||
+        (response.flags & ~kKnownFlags) != 0U) {
+        runtime::Panic("hid_keyboard.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    return HidKeyboardState{(response.flags & MICROPIXEL_HID_KEYBOARD_STATE_AVAILABLE) != 0U,
+                            (response.flags & MICROPIXEL_HID_KEYBOARD_STATE_STARTED) != 0U,
+                            (response.flags & MICROPIXEL_HID_KEYBOARD_STATE_ADVERTISING) != 0U,
+                            (response.flags & MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED) != 0U};
+}
+
+Result<void> HidKeyboard::Start() const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_START, nullptr, 0U);
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> HidKeyboard::Key(HidKeyUsage usage, bool pressed, bool apple_fn) const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_hid_keyboard_key_request_t request{};
+        request.size = sizeof(request);
+        request.usage = static_cast<uint8_t>(usage);
+        request.pressed = pressed ? 1U : 0U;
+        request.flags = apple_fn ? static_cast<uint32_t>(MICROPIXEL_HID_KEYBOARD_KEY_APPLE_FN) : 0U;
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_KEY, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> HidKeyboard::Consumer(HidConsumerUsage usage, bool pressed) const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_hid_keyboard_consumer_request_t request{};
+        request.size = sizeof(request);
+        request.usage = static_cast<uint16_t>(usage);
+        request.pressed = pressed ? 1U : 0U;
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_CONSUMER, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<MicrophoneInfo> Microphone::Info() const {
+    int32_t status = OpenMicrophoneService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_microphone_info_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(microphone_service, MICROPIXEL_MICROPHONE_METHOD_GET_INFO, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("microphone.info.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    return MicrophoneInfo{(response.flags & MICROPIXEL_MICROPHONE_FLAG_AVAILABLE) != 0U,
+                          (response.flags & MICROPIXEL_MICROPHONE_FLAG_STARTED) != 0U, response.sample_rate,
+                          response.frame_samples};
+}
+
+Result<void> Microphone::Start(uint8_t gain_db) const {
+    int32_t status = OpenMicrophoneService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_microphone_start_request_t request{};
+        request.size = sizeof(request);
+        request.gain_db = gain_db;
+        status = CallVoid(microphone_service, MICROPIXEL_MICROPHONE_METHOD_START, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> Microphone::Stop() const {
+    int32_t status = OpenMicrophoneService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(microphone_service, MICROPIXEL_MICROPHONE_METHOD_STOP, nullptr, 0U);
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<uint32_t> Microphone::Read(int16_t* samples, uint32_t max_samples) const {
+    if (samples == nullptr || max_samples == 0U || max_samples > kMaxReadSamples) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    int32_t status = OpenMicrophoneService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_microphone_read_request_t request{};
+    request.size = sizeof(request);
+    request.max_samples = max_samples;
+    // Header plus samples in one response; not zero-initialised.
+    alignas(4) uint8_t response[sizeof(micropixel_microphone_read_response_t) + kMaxReadSamples * sizeof(int16_t)];
+    uint32_t response_size = 0U;
+    status = CallService(microphone_service, MICROPIXEL_MICROPHONE_METHOD_READ, &request, sizeof(request), response,
+                         sizeof(micropixel_microphone_read_response_t) + max_samples * sizeof(int16_t),
+                         response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_microphone_read_response_t header{};
+    if (response_size < sizeof(header)) {
+        runtime::Panic("microphone.read.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(&header, response, sizeof(header));
+    if (header.size != sizeof(header) || header.sample_count > max_samples ||
+        response_size != sizeof(header) + header.sample_count * sizeof(int16_t)) {
+        runtime::Panic("microphone.read.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(samples, response + sizeof(header), header.sample_count * sizeof(int16_t));
+    return header.sample_count;
+}
+
+Result<PeerRadioState> PeerRadio::State() const {
+    int32_t status = OpenPeerRadioService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_peer_radio_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(peer_radio_service, MICROPIXEL_PEER_RADIO_METHOD_GET_STATE, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("peer_radio.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    PeerRadioState state{};
+    state.available = (response.flags & MICROPIXEL_PEER_RADIO_STATE_AVAILABLE) != 0U;
+    state.started = (response.flags & MICROPIXEL_PEER_RADIO_STATE_STARTED) != 0U;
+    state.paired = (response.flags & MICROPIXEL_PEER_RADIO_STATE_PAIRED) != 0U;
+    state.peer_present = (response.flags & MICROPIXEL_PEER_RADIO_STATE_PEER_PRESENT) != 0U;
+    state.pairing = (response.flags & MICROPIXEL_PEER_RADIO_STATE_PAIRING) != 0U;
+    state.on_wifi_channel = (response.flags & MICROPIXEL_PEER_RADIO_STATE_WIFI_CHANNEL) != 0U;
+    state.channel = response.channel;
+    state.peer_rssi = response.peer_rssi;
+    CopyBytes(state.self_address, response.self_address, sizeof(state.self_address));
+    CopyBytes(state.peer_address, response.peer_address, sizeof(state.peer_address));
+    state.packets_sent = response.packets_sent;
+    state.packets_received = response.packets_received;
+    state.send_failures = response.send_failures;
+    return state;
+}
+
+Result<void> PeerRadio::Start() const { return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_START, nullptr, 0U); }
+
+Result<void> PeerRadio::Stop() const { return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_STOP, nullptr, 0U); }
+
+Result<void> PeerRadio::BeginPairing() const {
+    return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_PAIR_BEGIN, nullptr, 0U);
+}
+
+Result<void> PeerRadio::Accept(const uint8_t (&address)[6]) const {
+    micropixel_peer_radio_accept_request_t request{};
+    request.size = sizeof(request);
+    CopyBytes(request.address, address, sizeof(request.address));
+    return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_PAIR_ACCEPT, &request, sizeof(request));
+}
+
+Result<void> PeerRadio::Forget() const { return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_FORGET, nullptr, 0U); }
+
+Result<void> PeerRadio::Send(const void* data, uint32_t length) const {
+    if (data == nullptr || length == 0U || length > kMaxPayload) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    alignas(4) uint8_t request[sizeof(micropixel_peer_radio_send_request_t) + kMaxPayload];
+    micropixel_peer_radio_send_request_t header{};
+    header.size = sizeof(header);
+    header.length = static_cast<uint16_t>(length);
+    CopyBytes(request, &header, sizeof(header));
+    CopyBytes(request + sizeof(header), data, length);
+    return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_SEND, request, sizeof(header) + length);
+}
+
+Result<PeerPacket> PeerRadio::Receive(uint8_t (&data)[kMaxPayload]) const {
+    int32_t status = OpenPeerRadioService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    using Header = micropixel_peer_radio_receive_response_t;
+    alignas(4) uint8_t response[sizeof(Header) + kMaxPayload];
+    uint32_t response_size = 0U;
+    status = CallService(peer_radio_service, MICROPIXEL_PEER_RADIO_METHOD_RECEIVE, nullptr, 0U, response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    Header header{};
+    if (response_size < sizeof(header)) {
+        runtime::Panic("peer_radio.receive.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(&header, response, sizeof(header));
+    if (header.size != sizeof(header) || header.length > kMaxPayload ||
+        response_size != sizeof(header) + header.length) {
+        runtime::Panic("peer_radio.receive.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(data, response + sizeof(header), header.length);
+    return PeerPacket{header.length, header.rssi, header.pending, header.dropped};
 }
 
 }  // namespace micropixel

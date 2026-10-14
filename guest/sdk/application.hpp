@@ -11,9 +11,12 @@
 #include "sdk/gpio.hpp"
 #include "sdk/graphics.hpp"
 #include "sdk/haptics.hpp"
+#include "sdk/hid_keyboard.hpp"
 #include "sdk/input.hpp"
 #include "sdk/launch_arguments.hpp"
 #include "sdk/localization.hpp"
+#include "sdk/microphone.hpp"
+#include "sdk/peer_radio.hpp"
 #include "sdk/log.hpp"
 #include "sdk/power_info.hpp"
 #include "sdk/random.hpp"
@@ -64,6 +67,13 @@ class Application final {
     [[nodiscard]] constexpr Gpio gpio() const noexcept { return Gpio{Gpio::CapabilityToken{}}; }
     [[nodiscard]] constexpr Haptics haptics() const noexcept { return Haptics{Haptics::CapabilityToken{}}; }
     [[nodiscard]] constexpr PowerInfo power_info() const noexcept { return PowerInfo{PowerInfo::CapabilityToken{}}; }
+    [[nodiscard]] constexpr HidKeyboard hid_keyboard() const noexcept {
+        return HidKeyboard{HidKeyboard::CapabilityToken{}};
+    }
+    [[nodiscard]] constexpr Microphone microphone() const noexcept {
+        return Microphone{Microphone::CapabilityToken{}};
+    }
+    [[nodiscard]] constexpr PeerRadio peer_radio() const noexcept { return PeerRadio{PeerRadio::CapabilityToken{}}; }
 
     template <typename Handler>
     void Run(Handler&& handler) const {

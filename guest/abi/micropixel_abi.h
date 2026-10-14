@@ -52,6 +52,16 @@
 #define MICROPIXEL_HAPTICS_INTERFACE_MINOR 0U
 #define MICROPIXEL_POWER_INTERFACE_MAJOR 1U
 #define MICROPIXEL_POWER_INTERFACE_MINOR 0U
+#define MICROPIXEL_HID_KEYBOARD_INTERFACE_MAJOR 1U
+#define MICROPIXEL_HID_KEYBOARD_INTERFACE_MINOR 0U
+#define MICROPIXEL_MICROPHONE_INTERFACE_MAJOR 1U
+#define MICROPIXEL_MICROPHONE_INTERFACE_MINOR 0U
+/* Most mono int16 samples one Microphone READ returns. */
+#define MICROPIXEL_MICROPHONE_MAX_READ_SAMPLES 960U
+#define MICROPIXEL_PEER_RADIO_INTERFACE_MAJOR 1U
+#define MICROPIXEL_PEER_RADIO_INTERFACE_MINOR 0U
+/* Largest Guest payload in one Peer Radio packet. */
+#define MICROPIXEL_PEER_RADIO_MAX_PAYLOAD 240U
 #define MICROPIXEL_DEVICES_LIST_PAGE_SIZE 16U
 #define MICROPIXEL_DEVICE_NAME_MAX_BYTES 39U
 
@@ -105,6 +115,9 @@ typedef enum micropixel_service_id {
     MICROPIXEL_SERVICE_GPIO = 21,
     MICROPIXEL_SERVICE_HAPTICS = 22,
     MICROPIXEL_SERVICE_POWER = 23,
+    MICROPIXEL_SERVICE_HID_KEYBOARD = 24,
+    MICROPIXEL_SERVICE_MICROPHONE = 25,
+    MICROPIXEL_SERVICE_PEER_RADIO = 26,
 } micropixel_service_id_t;
 
 typedef enum micropixel_service_flag {
@@ -552,6 +565,205 @@ typedef struct micropixel_power_info {
     uint8_t reserved0[3];
     uint32_t reserved1[2];
 } micropixel_power_info_t;
+
+/* Bluetooth LE keyboard presented by the Host to a paired computer. START
+ * powers the radio and advertises; the bond survives App exit and Host
+ * restarts, so a computer reconnects on its own. KEY sends one HID Keyboard
+ * page usage press or release (0x01..0x73, or a modifier 0xE0..0xE7);
+ * APPLE_FN mirrors it on the vendor Fn report. CONSUMER sends one Consumer
+ * page usage (volume, media) press or release. */
+typedef enum micropixel_hid_keyboard_method {
+    MICROPIXEL_HID_KEYBOARD_METHOD_GET_STATE = 1,
+    MICROPIXEL_HID_KEYBOARD_METHOD_START = 2,
+    MICROPIXEL_HID_KEYBOARD_METHOD_KEY = 3,
+    MICROPIXEL_HID_KEYBOARD_METHOD_CONSUMER = 4,
+} micropixel_hid_keyboard_method_t;
+
+typedef enum micropixel_hid_keyboard_state_flag {
+    MICROPIXEL_HID_KEYBOARD_STATE_AVAILABLE = 1U << 0U,
+    MICROPIXEL_HID_KEYBOARD_STATE_STARTED = 1U << 1U,
+    MICROPIXEL_HID_KEYBOARD_STATE_ADVERTISING = 1U << 2U,
+    MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED = 1U << 3U,
+} micropixel_hid_keyboard_state_flag_t;
+
+typedef enum micropixel_hid_keyboard_key_flag {
+    MICROPIXEL_HID_KEYBOARD_KEY_APPLE_FN = 1U << 0U,
+} micropixel_hid_keyboard_key_flag_t;
+
+typedef struct micropixel_hid_keyboard_state {
+    uint16_t size;
+    uint16_t reserved0;
+    uint32_t flags;
+} micropixel_hid_keyboard_state_t;
+
+typedef struct micropixel_hid_keyboard_key_request {
+    uint16_t size;
+    uint8_t usage;
+    uint8_t pressed;
+    uint32_t flags;
+} micropixel_hid_keyboard_key_request_t;
+
+typedef struct micropixel_hid_keyboard_consumer_request {
+    uint16_t size;
+    uint16_t usage;
+    uint8_t pressed;
+    uint8_t reserved0;
+    uint16_t reserved1;
+} micropixel_hid_keyboard_consumer_request_t;
+
+/* Built-in microphone, mono int16 at `sample_rate`. START powers the
+ * capture path and fills a Host ring; FRAMES fires once each time at least
+ * `frame_samples` are buffered and the Guest has not read since the last
+ * event (READ re-arms it). When the Guest falls behind the Host drops the
+ * oldest samples and reports the count. Capture stops at STOP, App suspend
+ * and session end; it only runs while the App is in the foreground. */
+typedef enum micropixel_microphone_method {
+    MICROPIXEL_MICROPHONE_METHOD_GET_INFO = 1,
+    MICROPIXEL_MICROPHONE_METHOD_START = 2,
+    MICROPIXEL_MICROPHONE_METHOD_STOP = 3,
+    MICROPIXEL_MICROPHONE_METHOD_READ = 4,
+} micropixel_microphone_method_t;
+
+typedef enum micropixel_microphone_event_id {
+    MICROPIXEL_MICROPHONE_EVENT_FRAMES = 1,
+} micropixel_microphone_event_id_t;
+
+typedef enum micropixel_microphone_flag {
+    MICROPIXEL_MICROPHONE_FLAG_AVAILABLE = 1U << 0U,
+    MICROPIXEL_MICROPHONE_FLAG_STARTED = 1U << 1U,
+} micropixel_microphone_flag_t;
+
+typedef struct micropixel_microphone_info {
+    uint16_t size;
+    uint16_t frame_samples;
+    uint32_t sample_rate;
+    uint32_t flags;
+    uint32_t reserved0;
+} micropixel_microphone_info_t;
+
+/* `gain_db` 0..37 analog gain; 0xFF keeps the Host default. */
+typedef struct micropixel_microphone_start_request {
+    uint16_t size;
+    uint8_t gain_db;
+    uint8_t reserved0;
+    uint32_t reserved1;
+} micropixel_microphone_start_request_t;
+
+typedef struct micropixel_microphone_read_request {
+    uint16_t size;
+    uint16_t reserved0;
+    uint32_t max_samples;
+} micropixel_microphone_read_request_t;
+
+/* Followed by `sample_count` little-endian int16 samples; `size` covers the
+ * header only. */
+typedef struct micropixel_microphone_read_response {
+    uint16_t size;
+    uint16_t reserved0;
+    uint32_t sample_count;
+    /* Samples still buffered after this read. */
+    uint32_t available_samples;
+    /* Samples dropped since the previous READ because the ring was full. */
+    uint32_t dropped_samples;
+} micropixel_microphone_read_response_t;
+
+typedef struct micropixel_microphone_event_payload {
+    uint32_t available_samples;
+    uint32_t dropped_samples;
+    uint32_t reserved0[2];
+} micropixel_microphone_event_payload_t;
+
+/* Short-range link to one paired device of the same kind (ESP-NOW on
+ * ESP32). START brings the radio up (turning Wi-Fi on if it was off) and
+ * follows the Wi-Fi channel while associated; otherwise it searches the
+ * channels for the peer. PAIR_BEGIN advertises for up to 60 s; each nearby
+ * device also pairing arrives as a PAIR_CANDIDATE event with a 4-digit code
+ * both screens show. PAIR_ACCEPT stores that device (it survives restarts)
+ * and encrypts the link; the other side must accept too. SEND delivers to the
+ * paired peer only, without retries; packets from it arrive as PACKET events
+ * and RECEIVE pulls them oldest first. STATE fires when the flags change. */
+typedef enum micropixel_peer_radio_method {
+    MICROPIXEL_PEER_RADIO_METHOD_GET_STATE = 1,
+    MICROPIXEL_PEER_RADIO_METHOD_START = 2,
+    MICROPIXEL_PEER_RADIO_METHOD_STOP = 3,
+    MICROPIXEL_PEER_RADIO_METHOD_PAIR_BEGIN = 4,
+    MICROPIXEL_PEER_RADIO_METHOD_PAIR_ACCEPT = 5,
+    MICROPIXEL_PEER_RADIO_METHOD_FORGET = 6,
+    MICROPIXEL_PEER_RADIO_METHOD_SEND = 7,
+    MICROPIXEL_PEER_RADIO_METHOD_RECEIVE = 8,
+} micropixel_peer_radio_method_t;
+
+typedef enum micropixel_peer_radio_event_id {
+    MICROPIXEL_PEER_RADIO_EVENT_PACKET = 1,
+    MICROPIXEL_PEER_RADIO_EVENT_STATE = 2,
+    MICROPIXEL_PEER_RADIO_EVENT_PAIR_CANDIDATE = 3,
+} micropixel_peer_radio_event_id_t;
+
+typedef enum micropixel_peer_radio_state_flag {
+    MICROPIXEL_PEER_RADIO_STATE_AVAILABLE = 1U << 0U,
+    MICROPIXEL_PEER_RADIO_STATE_STARTED = 1U << 1U,
+    MICROPIXEL_PEER_RADIO_STATE_PAIRED = 1U << 2U,
+    /* Something was heard from the paired peer within the last 2 s. */
+    MICROPIXEL_PEER_RADIO_STATE_PEER_PRESENT = 1U << 3U,
+    MICROPIXEL_PEER_RADIO_STATE_PAIRING = 1U << 4U,
+    /* Pinned to the channel of an associated Wi-Fi network. */
+    MICROPIXEL_PEER_RADIO_STATE_WIFI_CHANNEL = 1U << 5U,
+} micropixel_peer_radio_state_flag_t;
+
+typedef struct micropixel_peer_radio_state {
+    uint16_t size;
+    uint8_t channel;
+    int8_t peer_rssi;
+    uint32_t flags;
+    uint8_t self_address[6];
+    uint8_t peer_address[6];
+    uint32_t packets_sent;
+    uint32_t packets_received;
+    uint32_t send_failures;
+} micropixel_peer_radio_state_t;
+
+typedef struct micropixel_peer_radio_accept_request {
+    uint16_t size;
+    uint8_t address[6];
+} micropixel_peer_radio_accept_request_t;
+
+/* Followed by `length` payload bytes; `size` covers the header only. */
+typedef struct micropixel_peer_radio_send_request {
+    uint16_t size;
+    uint16_t length;
+} micropixel_peer_radio_send_request_t;
+
+/* Followed by `length` payload bytes (0 when nothing was pending); `size`
+ * covers the header only. */
+typedef struct micropixel_peer_radio_receive_response {
+    uint16_t size;
+    uint16_t length;
+    int8_t rssi;
+    uint8_t reserved0;
+    uint16_t pending;
+    /* Packets dropped since the previous RECEIVE because the queue was full. */
+    uint32_t dropped;
+} micropixel_peer_radio_receive_response_t;
+
+typedef struct micropixel_peer_radio_packet_event_payload {
+    uint32_t pending;
+    uint32_t reserved0[3];
+} micropixel_peer_radio_packet_event_payload_t;
+
+typedef struct micropixel_peer_radio_state_event_payload {
+    uint32_t flags;
+    uint8_t channel;
+    int8_t peer_rssi;
+    uint16_t reserved0;
+    uint32_t reserved1[2];
+} micropixel_peer_radio_state_event_payload_t;
+
+typedef struct micropixel_peer_radio_candidate_event_payload {
+    uint8_t address[6];
+    uint16_t code;
+    int8_t rssi;
+    uint8_t reserved0[7];
+} micropixel_peer_radio_candidate_event_payload_t;
 
 typedef enum micropixel_graphics_method {
     MICROPIXEL_GRAPHICS_METHOD_GET_INFO = 1,
@@ -1744,6 +1956,36 @@ MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_haptics_info_t) == 20U, "micropix
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_haptics_play_request_t) == 16U,
                              "micropixel_haptics_play_request_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_power_info_t) == 24U, "micropixel_power_info_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_hid_keyboard_state_t) == 8U,
+                             "micropixel_hid_keyboard_state_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_hid_keyboard_key_request_t) == 8U,
+                             "micropixel_hid_keyboard_key_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_hid_keyboard_consumer_request_t) == 8U,
+                             "micropixel_hid_keyboard_consumer_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_info_t) == 16U,
+                             "micropixel_microphone_info_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_start_request_t) == 8U,
+                             "micropixel_microphone_start_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_read_request_t) == 8U,
+                             "micropixel_microphone_read_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_read_response_t) == 16U,
+                             "micropixel_microphone_read_response_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_event_payload_t) == 16U,
+                             "micropixel_microphone_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_state_t) == 32U,
+                             "micropixel_peer_radio_state_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_accept_request_t) == 8U,
+                             "micropixel_peer_radio_accept_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_send_request_t) == 4U,
+                             "micropixel_peer_radio_send_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_receive_response_t) == 12U,
+                             "micropixel_peer_radio_receive_response_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_packet_event_payload_t) == 16U,
+                             "micropixel_peer_radio_packet_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_state_event_payload_t) == 16U,
+                             "micropixel_peer_radio_state_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_candidate_event_payload_t) == 16U,
+                             "micropixel_peer_radio_candidate_event_payload_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_timer_event_payload_t) == 16U,
                              "micropixel_timer_event_payload_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_touch_event_payload_t) == 16U,
@@ -1787,7 +2029,8 @@ MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_raster_triangle_t) == 36U,
                              "micropixel_raster_triangle_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_raster_quad_t) == 44U, "micropixel_raster_quad_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_raster_span_t) == 28U, "micropixel_raster_span_t ABI size changed");
-MICROPIXEL_ABI_STATIC_ASSERT(offsetof(micropixel_raster_span_t, s) == 12U, "micropixel_raster_span_t.s ABI offset changed");
+MICROPIXEL_ABI_STATIC_ASSERT(offsetof(micropixel_raster_span_t, s) == 12U,
+                             "micropixel_raster_span_t.s ABI offset changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_raster_text_t) == 16U, "micropixel_raster_text_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(offsetof(micropixel_raster_text_t, font_handle) == 12U,
                              "micropixel_raster_text_t.font_handle ABI offset changed");
