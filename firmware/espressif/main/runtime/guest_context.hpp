@@ -17,6 +17,8 @@
 #include "runtime/services/direct_surface_service.hpp"
 #include "runtime/services/gpio_service.hpp"
 #include "runtime/services/haptics_service.hpp"
+#include "runtime/services/microphone_service.hpp"
+#include "runtime/services/peer_radio_service.hpp"
 #include "runtime/services/raster_service.hpp"
 #include "runtime/services/sensor_service.hpp"
 #include "runtime/services/storage_service.hpp"
@@ -54,7 +56,7 @@ class GuestContext final {
 
     [[nodiscard]] bool valid() const {  // NOLINT(readability-identifier-naming)
         return events_.valid() && timers_.valid() && sensors_.valid() && gpio_.valid() && haptics_.valid() &&
-               resources_.valid() && audio_playback_.valid() && storage_.valid() && audio_foreground_ready_;
+               microphone_.valid() && peer_radio_.valid() && resources_.valid() && audio_playback_.valid() && storage_.valid() && audio_foreground_ready_;
     }
     [[nodiscard]] micropixel_app_time_t AppTimeNow() const { return timers_.Now(); }
     [[nodiscard]] EventWaitResult WaitEvent(micropixel_event_t& event, uint64_t timeout_us) {
@@ -260,6 +262,36 @@ class GuestContext final {
     [[nodiscard]] device::DeviceResult<micropixel_power_info_t> PowerInfo(micropixel_device_id_t device) {
         return devices_.power_info().Get(device);
     }
+    [[nodiscard]] micropixel_hid_keyboard_state_t HidKeyboardState() { return devices_.hid_keyboard().GetState(); }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardStart() { return devices_.hid_keyboard().Start(); }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardKey(uint8_t usage, bool pressed, uint32_t flags) {
+        return devices_.hid_keyboard().Key(usage, pressed, flags);
+    }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardConsumer(uint16_t usage, bool pressed) {
+        return devices_.hid_keyboard().Consumer(usage, pressed);
+    }
+    [[nodiscard]] micropixel_microphone_info_t MicrophoneInfo() const { return microphone_.Info(); }
+    [[nodiscard]] ServiceResult<void> MicrophoneStart(uint8_t gain_db) { return microphone_.Start(gain_db); }
+    [[nodiscard]] ServiceResult<void> MicrophoneStop() { return microphone_.Stop(); }
+    [[nodiscard]] ServiceResult<micropixel_microphone_read_response_t> MicrophoneRead(int16_t* samples_out,
+                                                                                       uint32_t max_samples) {
+        return microphone_.Read(samples_out, max_samples);
+    }
+    [[nodiscard]] micropixel_peer_radio_state_t PeerRadioState() const { return peer_radio_.State(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioStart() { return peer_radio_.Start(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioStop() { return peer_radio_.Stop(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioBeginPairing() { return peer_radio_.BeginPairing(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioAccept(const uint8_t (&address)[6]) {
+        return peer_radio_.AcceptPeer(address);
+    }
+    [[nodiscard]] ServiceResult<void> PeerRadioForget() { return peer_radio_.Forget(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioSend(const uint8_t* data, uint32_t length) {
+        return peer_radio_.Send(data, length);
+    }
+    [[nodiscard]] ServiceResult<micropixel_peer_radio_receive_response_t> PeerRadioReceive(uint8_t* payload_out,
+                                                                                            uint32_t capacity) {
+        return peer_radio_.Receive(payload_out, capacity);
+    }
     [[nodiscard]] device::DeviceResult<void> AudioPlayTone(const micropixel_audio_tone_t& tone) const {
         return devices_.audio().PlayTone(tone);
     }
@@ -346,6 +378,8 @@ class GuestContext final {
     SensorService sensors_;
     GpioService gpio_;
     HapticsService haptics_;
+    MicrophoneService microphone_;
+    PeerRadioService peer_radio_;
     ResourceService resources_;
     AudioPlaybackService audio_playback_;
     PcmStreamService pcm_stream_;
@@ -367,6 +401,9 @@ class GuestContext final {
     GpioServiceEndpoint gpio_endpoint_;
     HapticsServiceEndpoint haptics_endpoint_;
     PowerInfoServiceEndpoint power_info_endpoint_;
+    HidKeyboardServiceEndpoint hid_keyboard_endpoint_;
+    MicrophoneServiceEndpoint microphone_endpoint_;
+    PeerRadioServiceEndpoint peer_radio_endpoint_;
     ServiceRegistry service_registry_;
     uint32_t core_sequence_{};
     bool suspended_{};

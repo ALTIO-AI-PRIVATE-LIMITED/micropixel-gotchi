@@ -16,7 +16,9 @@
 #include "host/ui/lvgl/square_common/status_layer_transition.hpp"
 #include "platform/adapters/graphics_adapter.hpp"
 #include "platform/audio/audio_engine.hpp"
+#include "platform/audio/es7210_microphone.hpp"
 #include "platform/audio/es8311_i2s_audio_sink.hpp"
+#include "platform/bluetooth/ble_hid_keyboard.hpp"
 #include "platform/boards/cheeko-gotchi/board_config.hpp"
 #include "platform/boards/cheeko-gotchi/board_hardware.hpp"
 #include "platform/boards/cheeko-gotchi/display_hardware.hpp"
@@ -34,6 +36,7 @@
 #include "platform/memory/internal_ram.hpp"
 #include "platform/transports/development_display_control.hpp"
 #include "platform/transports/usb_serial_jtag_local_control.hpp"
+#include "platform/wifi/esp_now_peer_radio.hpp"
 #include "platform/wifi/native_wifi_radio.hpp"
 #include "platform/wifi/wifi_manager.hpp"
 #include "work/task_policy.hpp"
@@ -55,8 +58,7 @@ static_assert(kHeight == ui_profile::Layout::kHeight);
 inline constexpr int kLvglTaskCore = task_policy::kSystemCore;
 inline constexpr graphics::SurfacePixelFormat kGuestSurfaceFormat = graphics::SurfacePixelFormat::kRgb565;
 inline constexpr int kStartupBrightnessPercent = 80;
-// ES8311 output only. The ES7210 microphones share the I2S bus but MicroPixel
-// has no capture contract, so they stay in reset.
+// ES8311 output and ES7210 capture share I2S0 in full duplex at one rate.
 inline constexpr uint32_t kAudioSampleRate = 16000U;
 
 // Board-owned input control stays in internal RAM, including the polled touch.
@@ -237,6 +239,13 @@ class CheekoGotchiBoard final : public Board {
         if (audio_status != ESP_OK) {
             ESP_LOGW(kTag, "audio unavailable for this boot: %s", esp_err_to_name(audio_status));
         }
+        // Capture is clocked by the speaker path, so it needs that first.
+        const esp_err_t microphone_status = audio_status == ESP_OK
+                                                ? microphone_.Configure(hardware_.I2cBus(), state_.i2c_executor)
+                                                : ESP_ERR_INVALID_STATE;
+        if (microphone_status != ESP_OK) {
+            ESP_LOGW(kTag, "microphone unavailable for this boot: %s", esp_err_to_name(microphone_status));
+        }
         ESP_RETURN_ON_ERROR(boot_button_.Initialize(state_.ui.Input()), kTag, "initialize BOOT key failed");
         ESP_RETURN_ON_ERROR(volume_down_button_.Initialize(state_.ui.Input()), kTag, "initialize VOL- key failed");
         ESP_RETURN_ON_ERROR(volume_up_button_.Initialize(state_.ui.Input()), kTag, "initialize VOL+ key failed");
@@ -273,15 +282,29 @@ class CheekoGotchiBoard final : public Board {
         registration.SetWifi(wifi_);
         registration.SetLocalControl(state_.local_control);
         registration.SetSystemUi(system_ui_);
+        registration.SetHidKeyboard(hid_keyboard_);
+        if (microphone_status == ESP_OK) {
+            registration.SetMicrophone(microphone_);
+        }
+        if (const esp_err_t radio_status = peer_radio_.Initialize(); radio_status == ESP_OK) {
+            registration.SetPeerRadio(peer_radio_);
+        } else {
+            ESP_LOGW(kTag, "peer radio unavailable for this boot: %s", esp_err_to_name(radio_status));
+        }
         bool registered = true;
         if (sensors_.acceleration_available()) {
             registered = registration.AddSensor(sensors_, board_detail::SensorPeripheral::kAcceleration,
                                                 "Built-in accelerometer") &&
                          registered;
         }
-        ESP_LOGI(kTag, "ready: JD9853 + %s, native Wi-Fi, audio=%s, accel=%s",
+        ESP_LOGI(kTag, "ready: JD9853 + %s, native Wi-Fi, audio=%s, mic=%s, accel=%s",
                  touch_status == ESP_OK ? "CST810" : "no touch", audio_status == ESP_OK ? "ES8311" : "off",
-                 sensors_.acceleration_available() ? "on" : "off");
+                 microphone_status == ESP_OK ? "ES7210" : "off", sensors_.acceleration_available() ? "on" : "off");
+        // Keep the keyboard pairable from boot, not only while its App is
+        // open, so a computer can find and reconnect to it at any time.
+        if (hid_keyboard_.Start() != MICROPIXEL_STATUS_OK) {
+            ESP_LOGW(kTag, "Bluetooth keyboard unavailable for this boot");
+        }
         return registered && context.Publish(registration) ? ESP_OK : ESP_ERR_INVALID_STATE;
     }
 
@@ -317,8 +340,9 @@ class CheekoGotchiBoard final : public Board {
                                                 .bit_clock = board_detail::board::kI2sBitClock,
                                                 .word_select = board_detail::board::kI2sWordSelect,
                                                 .data_out = board_detail::board::kI2sDataOut,
+                                                .data_in = board_detail::board::kI2sDataIn,
                                                 .amplifier_enable = board_detail::board::kAmplifierEnable,
-                                                .codec_i2c_address = 0x18U,
+                                                .codec_i2c_address = board_detail::board::kSpeakerCodecAddress,
                                                 .sample_rate = detail::kAudioSampleRate,
                                                 .i2c_clock_hz = 100000U,
                                                 .amplifier_preroll_ms = 24U,
@@ -329,6 +353,16 @@ class CheekoGotchiBoard final : public Board {
                                             },
                                             // The NS4150B runs from the battery rail, above the codec's 3.3 V.
                                             {.amplifier_voltage = 5.0F, .codec_dac_voltage = 3.3F}};
+    audio::Es7210Microphone microphone_{{
+                                            .name = "Cheeko Gotchi ES7210",
+                                            .log_tag = "gotchi_mic",
+                                            .i2c_port = board_detail::board::kI2cPort,
+                                            .i2c_address = board_detail::board::kMicrophoneAdcAddress,
+                                            .i2c_clock_hz = 100000U,
+                                            .sample_rate = detail::kAudioSampleRate,
+                                            .default_gain_db = 30U,
+                                        },
+                                        audio_output_};
     CheekoGotchiPresentation presentation_;
     host_ui::lvgl::square_common::SquareSystemUi system_ui_;
     // Apps see the three front keys as confirm and left/right.
@@ -340,6 +374,10 @@ class CheekoGotchiBoard final : public Board {
         KeyConfig(board_detail::board::kVolumeUpButton, device::KeyCode::kRight, "gotchi_vol_up")};
     wifi::NativeWifiRadio wifi_radio_{};
     wifi::WifiManager wifi_{wifi_radio_};
+    // ESP-NOW link to a second Gotchi (walkie-talkie); idle until an App starts it.
+    wifi::EspNowPeerRadio peer_radio_{wifi_};
+    // Shared by the WisprKey and Chat Remote Apps; started at boot.
+    bluetooth::BleHidKeyboard hid_keyboard_{"CGotchi"};
 };
 
 }  // namespace
