@@ -1,0 +1,10 @@
+{
+  "name": "gotchi-call-server",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": { "test": "node --test" },
+  "dependencies": {
+    "livekit-server-sdk": "2.19.1"
+  }
+}
