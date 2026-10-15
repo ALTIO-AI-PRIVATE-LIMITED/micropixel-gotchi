@@ -13,7 +13,7 @@ namespace micropixel::runtime {
 
 class TimerService;
 
-// Call 1.0: DIAL and HANG_UP return at once; progress arrives as advisory
+// Call 1.1: DIAL and HANG_UP return at once; progress arrives as advisory
 // STATE events and the Guest can always re-read GET_STATE. A call still
 // running when the session ends is hung up.
 class CallService final {
@@ -27,6 +27,8 @@ class CallService final {
     [[nodiscard]] micropixel_call_state_t State() const { return call_.State(); }
     [[nodiscard]] ServiceResult<void> Dial(const char* callee);
     [[nodiscard]] ServiceResult<void> HangUp();
+    [[nodiscard]] ServiceResult<void> Meetings(micropixel_call_meetings_t& meetings_out);
+    [[nodiscard]] ServiceResult<void> SetMuted(bool muted);
     void Shutdown();
 
    private:

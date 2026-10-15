@@ -22,6 +22,10 @@ class Call {
     // kInvalidState while a call is in progress; kUnsupported when unavailable.
     [[nodiscard]] virtual int32_t Dial(const char* callee, CallStateSink sink, void* context) = 0;
     [[nodiscard]] virtual int32_t HangUp() = 0;
+    // Copies the cached meeting list (kWouldBlock until the first fetch) and
+    // refreshes a stale cache in the background while no call runs.
+    [[nodiscard]] virtual int32_t Meetings(micropixel_call_meetings_t& meetings_out) = 0;
+    [[nodiscard]] virtual int32_t SetMuted(bool muted) = 0;
     // Hangs up and stops calling the sink before it returns.
     virtual void Release() = 0;
 

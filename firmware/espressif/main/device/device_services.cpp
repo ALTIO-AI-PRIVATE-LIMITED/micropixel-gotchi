@@ -167,6 +167,12 @@ DeviceResult<void> CallService::Dial(const char* callee, CallStateSink sink, voi
 
 DeviceResult<void> CallService::HangUp() const { return StatusResult(implementation_.HangUp()); }
 
+DeviceResult<void> CallService::Meetings(micropixel_call_meetings_t& meetings_out) const {
+    return StatusResult(implementation_.Meetings(meetings_out));
+}
+
+DeviceResult<void> CallService::SetMuted(bool muted) const { return StatusResult(implementation_.SetMuted(muted)); }
+
 DeviceResult<void> PeerRadioService::Start(const PeerRadioCallbacks& callbacks) const {
     return StatusResult(implementation_.Start(callbacks));
 }

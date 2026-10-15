@@ -756,7 +756,54 @@ Result<CallState> Call::State() const {
     state.phase = static_cast<CallPhase>(response.phase);
     state.end_reason = static_cast<CallEndReason>(response.end_reason);
     state.connected_ms = response.connected_ms;
+    state.muted = (response.flags & MICROPIXEL_CALL_FLAG_MUTED) != 0U;
     return state;
+}
+
+Result<CallMeetings> Call::Meetings() const {
+    int32_t status = OpenCallService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_call_meetings_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(call_service, MICROPIXEL_CALL_METHOD_GET_MEETINGS, nullptr, 0U, &response, sizeof(response),
+                         response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response) ||
+        response.count > MICROPIXEL_CALL_MAX_MEETINGS) {
+        runtime::Panic("call.meetings.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CallMeetings meetings{};
+    meetings.stale = (response.flags & MICROPIXEL_CALL_MEETINGS_FLAG_STALE) != 0U;
+    meetings.now_s = response.now_s;
+    meetings.count = response.count;
+    for (uint32_t i = 0U; i < response.count; ++i) {
+        const micropixel_call_meeting_t& wire = response.meetings[i];
+        CallMeeting& meeting = meetings.meetings[i];
+        meeting.start_s = wire.start_s;
+        meeting.end_s = wire.end_s;
+        runtime::CopyBytes(meeting.key, wire.key, sizeof(meeting.key));
+        runtime::CopyBytes(meeting.title, wire.title, sizeof(meeting.title));
+        runtime::CopyBytes(meeting.label, wire.label, sizeof(meeting.label));
+        meeting.key[sizeof(meeting.key) - 1U] = '\0';
+        meeting.title[sizeof(meeting.title) - 1U] = '\0';
+        meeting.label[sizeof(meeting.label) - 1U] = '\0';
+    }
+    return meetings;
+}
+
+Result<void> Call::SetMuted(bool muted) const {
+    micropixel_call_set_muted_request_t request{};
+    request.size = sizeof(request);
+    request.muted = muted ? 1U : 0U;
+    int32_t status = OpenCallService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(call_service, MICROPIXEL_CALL_METHOD_SET_MUTED, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
 }
 
 Result<void> Call::Dial(const char* callee) const {

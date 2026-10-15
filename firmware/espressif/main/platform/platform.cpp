@@ -112,6 +112,8 @@ class UnavailableCall final : public device::Call {
         return MICROPIXEL_STATUS_UNSUPPORTED;
     }
     [[nodiscard]] int32_t HangUp() override { return MICROPIXEL_STATUS_OK; }
+    [[nodiscard]] int32_t Meetings(micropixel_call_meetings_t&) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
+    [[nodiscard]] int32_t SetMuted(bool) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
     void Release() override {}
 };
 UnavailableCall& MissingCall() {

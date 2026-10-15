@@ -131,6 +131,8 @@ class CallService final {
     [[nodiscard]] micropixel_call_state_t State() const { return implementation_.State(); }
     [[nodiscard]] DeviceResult<void> Dial(const char* callee, CallStateSink sink, void* context) const;
     [[nodiscard]] DeviceResult<void> HangUp() const;
+    [[nodiscard]] DeviceResult<void> Meetings(micropixel_call_meetings_t& meetings_out) const;
+    [[nodiscard]] DeviceResult<void> SetMuted(bool muted) const;
     void Release() const { implementation_.Release(); }
 
    private:

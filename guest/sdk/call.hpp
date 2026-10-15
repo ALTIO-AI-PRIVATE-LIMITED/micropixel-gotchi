@@ -32,6 +32,25 @@ struct CallState final {
     // Why the last call ended; kNone before the first one.
     CallEndReason end_reason{CallEndReason::kNone};
     uint32_t connected_ms{};
+    // Call 1.1: the microphones are muted.
+    bool muted{};
+};
+
+// Call 1.1: an upcoming Google Meet meeting on the call server's calendar.
+struct CallMeeting final {
+    int64_t start_s{};  // Unix seconds.
+    int64_t end_s{};
+    char key[16]{};     // Dial "meet:<key>" to join.
+    char title[48]{};
+    char label[16]{};   // Start time in the calendar's time zone, e.g. "10:30".
+};
+
+struct CallMeetings final {
+    // The last refresh failed; the list is from an earlier one (or empty).
+    bool stale{};
+    int64_t now_s{};  // The call server's clock now, in Unix seconds.
+    uint32_t count{};
+    CallMeeting meetings[MICROPIXEL_CALL_MAX_MEETINGS]{};
 };
 
 // Voice call to a phone through the device's call server. Dial() returns at
@@ -45,6 +64,10 @@ class Call final {
     // kUnsupported when calling is not set up; kResourceExhausted while a call runs.
     [[nodiscard]] Result<void> Dial(const char* callee) const;
     [[nodiscard]] Result<void> HangUp() const;
+    // Call 1.1. kWouldBlock until the device has fetched the list once; each
+    // read refreshes a list older than 30 s in the background.
+    [[nodiscard]] Result<CallMeetings> Meetings() const;
+    [[nodiscard]] Result<void> SetMuted(bool muted) const;
 
    private:
     struct CapabilityToken final {
