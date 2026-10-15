@@ -486,7 +486,7 @@ ServiceDescriptor CallServiceEndpoint::Describe() const {
         .interface_minor = MICROPIXEL_CALL_INTERFACE_MINOR,
         .flags = MICROPIXEL_SERVICE_FLAG_CALL | MICROPIXEL_SERVICE_FLAG_EVENTS,
         .max_request_bytes = sizeof(micropixel_call_dial_request_t),
-        .max_response_bytes = sizeof(micropixel_call_state_t),
+        .max_response_bytes = sizeof(micropixel_call_meetings_t),
     };
 }
 
@@ -508,6 +508,22 @@ int32_t CallServiceEndpoint::Call(uint32_t method_id, const uint8_t* request, ui
         case MICROPIXEL_CALL_METHOD_HANG_UP:
             return EmptyRequest(request_size) ? ResultStatus(context_.CallHangUp())
                                               : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        case MICROPIXEL_CALL_METHOD_GET_MEETINGS: {
+            if (!EmptyRequest(request_size)) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            micropixel_call_meetings_t meetings{};
+            const int32_t status = ResultStatus(context_.CallMeetings(meetings));
+            return status == MICROPIXEL_STATUS_OK ? WriteValue(meetings, response, response_capacity, response_size_out)
+                                                  : status;
+        }
+        case MICROPIXEL_CALL_METHOD_SET_MUTED: {
+            micropixel_call_set_muted_request_t wire{};
+            if (!ReadRequest(request, request_size, wire)) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            return ResultStatus(context_.CallSetMuted(wire.muted != 0U));
+        }
         default:
             return MICROPIXEL_STATUS_UNSUPPORTED;
     }

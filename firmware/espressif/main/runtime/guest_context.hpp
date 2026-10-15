@@ -281,6 +281,10 @@ class GuestContext final {
     [[nodiscard]] micropixel_call_state_t CallState() const { return call_.State(); }
     [[nodiscard]] ServiceResult<void> CallDial(const char* callee) { return call_.Dial(callee); }
     [[nodiscard]] ServiceResult<void> CallHangUp() { return call_.HangUp(); }
+    [[nodiscard]] ServiceResult<void> CallMeetings(micropixel_call_meetings_t& meetings_out) {
+        return call_.Meetings(meetings_out);
+    }
+    [[nodiscard]] ServiceResult<void> CallSetMuted(bool muted) { return call_.SetMuted(muted); }
     [[nodiscard]] micropixel_peer_radio_state_t PeerRadioState() const { return peer_radio_.State(); }
     [[nodiscard]] ServiceResult<void> PeerRadioStart() { return peer_radio_.Start(); }
     [[nodiscard]] ServiceResult<void> PeerRadioStop() { return peer_radio_.Stop(); }

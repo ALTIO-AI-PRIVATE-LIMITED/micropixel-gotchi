@@ -63,9 +63,11 @@
 /* Largest Guest payload in one Peer Radio packet. */
 #define MICROPIXEL_PEER_RADIO_MAX_PAYLOAD 240U
 #define MICROPIXEL_CALL_INTERFACE_MAJOR 1U
-#define MICROPIXEL_CALL_INTERFACE_MINOR 0U
+#define MICROPIXEL_CALL_INTERFACE_MINOR 1U
 /* Longest callee name, without the terminating NUL. */
 #define MICROPIXEL_CALL_MAX_CALLEE_BYTES 31U
+/* Call 1.1: most meetings GET_MEETINGS returns. */
+#define MICROPIXEL_CALL_MAX_MEETINGS 8U
 #define MICROPIXEL_DEVICES_LIST_PAGE_SIZE 16U
 #define MICROPIXEL_DEVICE_NAME_MAX_BYTES 39U
 
@@ -779,6 +781,13 @@ typedef enum micropixel_call_method {
     MICROPIXEL_CALL_METHOD_GET_STATE = 1,
     MICROPIXEL_CALL_METHOD_DIAL = 2,
     MICROPIXEL_CALL_METHOD_HANG_UP = 3,
+    /* Call 1.1: the call server's upcoming Google Meet meetings, from the
+       Host's cache (WOULD_BLOCK until the first fetch finishes). Each read
+       also refreshes a cache older than 30 s while no call runs. Join one by
+       dialing "meet:<key>"; such calls start muted. */
+    MICROPIXEL_CALL_METHOD_GET_MEETINGS = 4,
+    /* Call 1.1: mute or unmute the microphones for the running call. */
+    MICROPIXEL_CALL_METHOD_SET_MUTED = 5,
 } micropixel_call_method_t;
 
 typedef enum micropixel_call_event_id {
@@ -807,6 +816,8 @@ typedef enum micropixel_call_end_reason {
 typedef enum micropixel_call_flag {
     /* The board can call and its firmware has a call server configured. */
     MICROPIXEL_CALL_FLAG_AVAILABLE = 1U << 0U,
+    /* Call 1.1: the microphones are muted; the far end hears silence. */
+    MICROPIXEL_CALL_FLAG_MUTED = 1U << 1U,
 } micropixel_call_flag_t;
 
 typedef struct micropixel_call_state {
@@ -824,6 +835,39 @@ typedef struct micropixel_call_dial_request {
     /* NUL-terminated callee name the call server knows, e.g. "iphone". */
     char callee[MICROPIXEL_CALL_MAX_CALLEE_BYTES + 1U];
 } micropixel_call_dial_request_t;
+
+typedef enum micropixel_call_meetings_flag {
+    /* The last refresh failed; the list is from an earlier one. */
+    MICROPIXEL_CALL_MEETINGS_FLAG_STALE = 1U << 0U,
+} micropixel_call_meetings_flag_t;
+
+typedef struct micropixel_call_meeting {
+    /* Unix seconds. */
+    int64_t start_s;
+    int64_t end_s;
+    /* NUL-terminated; dial "meet:<key>" to join. */
+    char key[16];
+    /* NUL-terminated ASCII, possibly cut short. */
+    char title[48];
+    /* NUL-terminated start time in the calendar's time zone, e.g. "10:30". */
+    char label[16];
+} micropixel_call_meeting_t;
+
+typedef struct micropixel_call_meetings {
+    uint32_t size;
+    uint32_t flags;
+    /* The call server's clock now, in Unix seconds; compare with start_s. */
+    int64_t now_s;
+    uint32_t count;
+    uint32_t reserved0;
+    micropixel_call_meeting_t meetings[MICROPIXEL_CALL_MAX_MEETINGS];
+} micropixel_call_meetings_t;
+
+typedef struct micropixel_call_set_muted_request {
+    uint32_t size;
+    /* 1 mutes, 0 unmutes. */
+    uint32_t muted;
+} micropixel_call_set_muted_request_t;
 
 typedef struct micropixel_call_state_event_payload {
     uint8_t phase;
@@ -2058,6 +2102,11 @@ MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_dial_request_t) == 36U,
                              "micropixel_call_dial_request_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_state_event_payload_t) == 16U,
                              "micropixel_call_state_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_meeting_t) == 96U, "micropixel_call_meeting_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_meetings_t) == 792U,
+                             "micropixel_call_meetings_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_set_muted_request_t) == 8U,
+                             "micropixel_call_set_muted_request_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_timer_event_payload_t) == 16U,
                              "micropixel_timer_event_payload_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_touch_event_payload_t) == 16U,

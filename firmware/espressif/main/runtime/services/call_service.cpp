@@ -20,6 +20,16 @@ ServiceResult<void> CallService::HangUp() {
     return result ? ServiceResult<void>{} : FailService<void>(result.error().status);
 }
 
+ServiceResult<void> CallService::Meetings(micropixel_call_meetings_t& meetings_out) {
+    auto result = call_.Meetings(meetings_out);
+    return result ? ServiceResult<void>{} : FailService<void>(result.error().status);
+}
+
+ServiceResult<void> CallService::SetMuted(bool muted) {
+    auto result = call_.SetMuted(muted);
+    return result ? ServiceResult<void>{} : FailService<void>(result.error().status);
+}
+
 void CallService::Shutdown() {
     if (dialed_) {
         dialed_ = false;

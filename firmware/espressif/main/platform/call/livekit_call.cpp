@@ -22,7 +22,7 @@ namespace {
 constexpr char kTag[] = "livekit_call";
 constexpr uint32_t kSpeakerToken = 0x43414c4cU;  // "CALL"
 constexpr uint32_t kHttpTimeoutMs = 10000U;
-constexpr int kMaxResponseBytes = 2048;
+constexpr int kMaxResponseBytes = 4096;  // Fits the meeting list.
 constexpr TickType_t kMicrophoneWait = pdMS_TO_TICKS(100);
 
 bool Configured() { return CONFIG_MICROPIXEL_CALL_SERVER_URL[0] != '\0'; }
@@ -67,14 +67,17 @@ bool CopyField(const cJSON* root, const char* name, char* destination, size_t ca
     return true;
 }
 
-// POSTs JSON to the call server. Returns the HTTP status (-1 on transport
-// failure); `response`, when given, receives a heap body the caller frees.
+bool IsMeetCallee(const char* callee) { return std::strncmp(callee, "meet:", 5U) == 0; }
+
+// POSTs JSON to the call server, or GETs when `body` is null. Returns the
+// HTTP status (-1 on transport failure); `response`, when given, receives a
+// heap body the caller frees.
 int PostJson(const char* path, const char* body, char** response) {
     char url[192];
     std::snprintf(url, sizeof(url), "%s%s", CONFIG_MICROPIXEL_CALL_SERVER_URL, path);
     esp_http_client_config_t config{};
     config.url = url;
-    config.method = HTTP_METHOD_POST;
+    config.method = body != nullptr ? HTTP_METHOD_POST : HTTP_METHOD_GET;
     config.crt_bundle_attach = esp_crt_bundle_attach;
     config.timeout_ms = kHttpTimeoutMs;
     esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -84,10 +87,13 @@ int PostJson(const char* path, const char* body, char** response) {
     char authorization[160];
     std::snprintf(authorization, sizeof(authorization), "Bearer %s", CONFIG_MICROPIXEL_CALL_DEVICE_SECRET);
     (void)esp_http_client_set_header(client, "Authorization", authorization);
-    (void)esp_http_client_set_header(client, "Content-Type", "application/json");
+    if (body != nullptr) {
+        (void)esp_http_client_set_header(client, "Content-Type", "application/json");
+    }
     int status = -1;
-    const int length = static_cast<int>(std::strlen(body));
-    if (esp_http_client_open(client, length) == ESP_OK && esp_http_client_write(client, body, length) == length &&
+    const int length = body != nullptr ? static_cast<int>(std::strlen(body)) : 0;
+    if (esp_http_client_open(client, length) == ESP_OK &&
+        (length == 0 || esp_http_client_write(client, body, length) == length) &&
         esp_http_client_fetch_headers(client) >= 0) {
         status = esp_http_client_get_status_code(client);
         if (response != nullptr) {
@@ -134,9 +140,11 @@ esp_err_t LiveKitCall::Initialize() {
     }
     queue_ = xQueueCreate(16, sizeof(Message));
     sink_mutex_ = xSemaphoreCreateMutex();
+    meetings_mutex_ = xSemaphoreCreateMutex();
     speaker_ring_ = xStreamBufferCreateWithCaps(kSpeakerRingBytes, 1U, MALLOC_CAP_SPIRAM);
     microphone_ring_ = xStreamBufferCreateWithCaps(kMicrophoneRingBytes, 1U, MALLOC_CAP_SPIRAM);
-    if (queue_ == nullptr || sink_mutex_ == nullptr || speaker_ring_ == nullptr || microphone_ring_ == nullptr) {
+    if (queue_ == nullptr || sink_mutex_ == nullptr || meetings_mutex_ == nullptr || speaker_ring_ == nullptr ||
+        microphone_ring_ == nullptr) {
         return ESP_ERR_NO_MEM;
     }
     InitPort(speaker_port_, this);
@@ -154,6 +162,9 @@ micropixel_call_state_t LiveKitCall::State() const {
     micropixel_call_state_t state{};
     state.size = sizeof(state);
     state.flags = task_ != nullptr && Configured() ? MICROPIXEL_CALL_FLAG_AVAILABLE : 0U;
+    if (muted_.load(std::memory_order_acquire)) {
+        state.flags |= MICROPIXEL_CALL_FLAG_MUTED;
+    }
     state.phase = phase_.load(std::memory_order_acquire);
     state.end_reason = end_reason_.load(std::memory_order_acquire);
     if (state.phase == MICROPIXEL_CALL_PHASE_CONNECTED) {
@@ -193,6 +204,39 @@ int32_t LiveKitCall::HangUp() {
     return MICROPIXEL_STATUS_OK;
 }
 
+int32_t LiveKitCall::Meetings(micropixel_call_meetings_t& meetings_out) {
+    if (task_ == nullptr || !Configured()) {
+        return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
+    const int64_t now_us = esp_timer_get_time();
+    (void)xSemaphoreTake(meetings_mutex_, portMAX_DELAY);
+    // Ready once a fetch finished; a failed first fetch reads as an empty, stale list.
+    const bool ready = meetings_tried_us_ != 0;
+    const bool stale = !ready || now_us - meetings_tried_us_ > kMeetingsMaxAgeUs;
+    if (ready) {
+        meetings_out = meetings_;
+        meetings_out.size = sizeof(meetings_out);
+        if (meetings_fetched_us_ != 0) {
+            meetings_out.now_s += (now_us - meetings_fetched_us_) / 1000000;
+        }
+    }
+    (void)xSemaphoreGive(meetings_mutex_);
+    if (stale && !meetings_refreshing_.exchange(true, std::memory_order_acq_rel) &&
+        !Post(Command::kRefreshMeetings)) {
+        meetings_refreshing_.store(false, std::memory_order_release);
+    }
+    return ready ? MICROPIXEL_STATUS_OK : MICROPIXEL_STATUS_WOULD_BLOCK;
+}
+
+int32_t LiveKitCall::SetMuted(bool muted) {
+    if (task_ == nullptr) {
+        return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
+    muted_.store(muted, std::memory_order_release);
+    ESP_LOGI(kTag, "microphones %s", muted ? "muted" : "live");
+    return MICROPIXEL_STATUS_OK;
+}
+
 void LiveKitCall::Release() {
     if (task_ == nullptr) {
         return;
@@ -204,11 +248,13 @@ void LiveKitCall::Release() {
     (void)HangUp();
 }
 
-void LiveKitCall::Post(Command command, int32_t value) {
+bool LiveKitCall::Post(Command command, int32_t value) {
     const Message message{command, value};
     if (xQueueSend(queue_, &message, 0U) != pdTRUE) {
         ESP_LOGW(kTag, "command queue full, dropped %d", static_cast<int>(command));
+        return false;
     }
+    return true;
 }
 
 void LiveKitCall::TaskEntry(void* argument) { static_cast<LiveKitCall*>(argument)->Run(); }
@@ -220,7 +266,7 @@ void LiveKitCall::Run() {
             Handle(message);
         }
         const int64_t elapsed_ms = (esp_timer_get_time() - phase_since_us_.load(std::memory_order_acquire)) / 1000;
-        if (phase_.load(std::memory_order_acquire) == MICROPIXEL_CALL_PHASE_RINGING && elapsed_ms > kRingTimeoutMs) {
+        if (phase_.load(std::memory_order_acquire) == MICROPIXEL_CALL_PHASE_RINGING && elapsed_ms > ring_timeout_ms_) {
             EndCall(MICROPIXEL_CALL_END_NO_ANSWER);
         }
     }
@@ -231,6 +277,13 @@ void LiveKitCall::Handle(const Message& message) {
     switch (message.command) {
         case Command::kDial:
             StartCall();
+            return;
+        case Command::kRefreshMeetings:
+            // The HTTP round trip would stall room events, so only between calls.
+            if (phase == MICROPIXEL_CALL_PHASE_IDLE) {
+                RefreshMeetings();
+            }
+            meetings_refreshing_.store(false, std::memory_order_release);
             return;
         case Command::kHangUp:
             if (room_ != nullptr) {
@@ -266,6 +319,9 @@ void LiveKitCall::Handle(const Message& message) {
 void LiveKitCall::StartCall() {
     SetPhase(MICROPIXEL_CALL_PHASE_DIALING, MICROPIXEL_CALL_END_NONE);
     call_id_[0] = '\0';
+    const bool meet = IsMeetCallee(callee_);
+    ring_timeout_ms_ = meet ? kMeetRingTimeoutMs : kRingTimeoutMs;
+    muted_.store(meet, std::memory_order_release);
     if (!EnsureMedia() || !RequestRoom()) {
         SetPhase(MICROPIXEL_CALL_PHASE_IDLE, MICROPIXEL_CALL_END_FAILED);
         return;
@@ -318,6 +374,7 @@ void LiveKitCall::EndCall(uint8_t reason) {
         room_ = nullptr;
     }
     StopAudio();
+    muted_.store(false, std::memory_order_release);
     SetPhase(MICROPIXEL_CALL_PHASE_IDLE, reason);
     // After the phase change, so the App is not held up by the round trip.
     NotifyServerEnded();
@@ -455,10 +512,68 @@ void LiveKitCall::NotifyServerEnded() {
     }
 }
 
+void LiveKitCall::RefreshMeetings() {
+    char* response = nullptr;
+    const int status = PostJson("/api/meetings", nullptr, &response);
+    cJSON* root = status == 200 && response != nullptr ? cJSON_Parse(response) : nullptr;
+    const cJSON* list = cJSON_GetObjectItemCaseSensitive(root, "meetings");
+    const cJSON* now = cJSON_GetObjectItemCaseSensitive(root, "now");
+    const int64_t fetched_us = esp_timer_get_time();
+    (void)xSemaphoreTake(meetings_mutex_, portMAX_DELAY);
+    meetings_tried_us_ = fetched_us;
+    if (cJSON_IsArray(list) && cJSON_IsNumber(now)) {
+        micropixel_call_meetings_t& out = meetings_;
+        out = {};
+        out.size = sizeof(out);
+        out.now_s = static_cast<int64_t>(cJSON_GetNumberValue(now));
+        const cJSON* item = nullptr;
+        cJSON_ArrayForEach(item, list) {
+            if (out.count == MICROPIXEL_CALL_MAX_MEETINGS) {
+                break;
+            }
+            micropixel_call_meeting_t& meeting = out.meetings[out.count];
+            const cJSON* title = cJSON_GetObjectItemCaseSensitive(item, "title");
+            const cJSON* label = cJSON_GetObjectItemCaseSensitive(item, "label");
+            if (!CopyField(item, "key", meeting.key, sizeof(meeting.key))) {
+                meeting = {};
+                continue;
+            }
+            std::snprintf(meeting.title, sizeof(meeting.title), "%s", cJSON_IsString(title) ? title->valuestring : "");
+            std::snprintf(meeting.label, sizeof(meeting.label), "%s", cJSON_IsString(label) ? label->valuestring : "");
+            meeting.start_s = static_cast<int64_t>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(item, "start")));
+            meeting.end_s = static_cast<int64_t>(cJSON_GetNumberValue(cJSON_GetObjectItemCaseSensitive(item, "end")));
+            ++out.count;
+        }
+        meetings_fetched_us_ = fetched_us;
+    } else {
+        ESP_LOGW(kTag, "meetings: HTTP %d %s", status, response != nullptr ? response : "");
+        meetings_.flags |= MICROPIXEL_CALL_MEETINGS_FLAG_STALE;
+    }
+    (void)xSemaphoreGive(meetings_mutex_);
+    cJSON_Delete(root);
+    heap_caps_free(response);
+}
+
 void LiveKitCall::OnMicrophonePairs(void* context, const int16_t* pairs, uint32_t count) {
     auto& self = *static_cast<LiveKitCall*>(context);
     // A full ring drops the newest audio; the capture reader is behind anyway.
-    (void)xStreamBufferSend(self.microphone_ring_, pairs, count * 2U * sizeof(int16_t), 0U);
+    if (!self.muted_.load(std::memory_order_acquire)) {
+        (void)xStreamBufferSend(self.microphone_ring_, pairs, count * 2U * sizeof(int16_t), 0U);
+        return;
+    }
+    // Muted: silence the mic but keep the speaker reference, so echo
+    // cancellation stays converged for when the mic comes back.
+    int16_t chunk[2U * 64U];
+    while (count > 0U) {
+        const uint32_t n = count < 64U ? count : 64U;
+        for (uint32_t i = 0U; i < n; ++i) {
+            chunk[2U * i] = 0;
+            chunk[2U * i + 1U] = pairs[2U * i + 1U];
+        }
+        (void)xStreamBufferSend(self.microphone_ring_, chunk, n * 2U * sizeof(int16_t), 0U);
+        pairs += 2U * n;
+        count -= n;
+    }
 }
 
 int LiveKitCall::ReadMicrophone(uint8_t* data, int size) {

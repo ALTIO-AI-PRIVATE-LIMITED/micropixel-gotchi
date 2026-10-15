@@ -20,7 +20,9 @@ namespace micropixel::platform::call {
 // (CONFIG_MICROPIXEL_CALL_SERVER_URL) for a room and a token; the server
 // rings the phone. While a call runs, the far end plays through a Host PCM
 // stream on the audio engine and the microphones (with the speaker loopback
-// as echo reference) feed LiveKit's capture pipeline.
+// as echo reference) feed LiveKit's capture pipeline. Callees "meet:<key>"
+// join a Google Meet through the server's meeting bot; those calls start
+// muted and wait longer for the bot to be let in.
 class LiveKitCall final : public device::Call {
    public:
     LiveKitCall(device::Audio& audio, device::Microphone& microphone) : audio_(audio), microphone_(microphone) {}
@@ -30,6 +32,8 @@ class LiveKitCall final : public device::Call {
     [[nodiscard]] micropixel_call_state_t State() const override;
     [[nodiscard]] int32_t Dial(const char* callee, device::CallStateSink sink, void* context) override;
     [[nodiscard]] int32_t HangUp() override;
+    [[nodiscard]] int32_t Meetings(micropixel_call_meetings_t& meetings_out) override;
+    [[nodiscard]] int32_t SetMuted(bool muted) override;
     void Release() override;
 
     // Bridges between esp_codec_dev and the rings below; public for the C callbacks.
@@ -41,13 +45,16 @@ class LiveKitCall final : public device::Call {
     int WriteSpeaker(const uint8_t* data, int size);
 
    private:
-    enum class Command : uint8_t { kDial, kHangUp, kRoomState, kRemoteJoined, kRemoteLeft };
+    enum class Command : uint8_t { kDial, kHangUp, kRoomState, kRemoteJoined, kRemoteLeft, kRefreshMeetings };
     struct Message final {
         Command command;
         int32_t value;
     };
 
     static constexpr uint32_t kRingTimeoutMs = 45000U;
+    // A meeting bot can sit in the Meet waiting room until the host lets it in.
+    static constexpr uint32_t kMeetRingTimeoutMs = 10U * 60U * 1000U;
+    static constexpr int64_t kMeetingsMaxAgeUs = 30LL * 1000000LL;
     static constexpr uint32_t kSpeakerRingBytes = 16000U * 2U;     // 1 s mono
     static constexpr uint32_t kMicrophoneRingBytes = 16000U * 4U;  // 1 s of (mic, reference) pairs
 
@@ -62,7 +69,8 @@ class LiveKitCall final : public device::Call {
     void StopAudio();
     [[nodiscard]] bool RequestRoom();
     void NotifyServerEnded();
-    void Post(Command command, int32_t value = 0);
+    void RefreshMeetings();
+    bool Post(Command command, int32_t value = 0);
 
     friend struct RoomCallbacks;
     static void OnMicrophonePairs(void* context, const int16_t* pairs, uint32_t count);
@@ -90,12 +98,20 @@ class LiveKitCall final : public device::Call {
     std::atomic<uint8_t> end_reason_{MICROPIXEL_CALL_END_NONE};
     std::atomic<int64_t> phase_since_us_{};
     std::atomic<bool> hang_up_requested_{};
+    std::atomic<bool> muted_{};
+    std::atomic<bool> meetings_refreshing_{};
     // Guarded by sink_mutex_.
     device::CallStateSink sink_{};
     void* sink_context_{};
+    // Guarded by meetings_mutex_. fetched_us is 0 until the first fetch succeeds.
+    SemaphoreHandle_t meetings_mutex_{};
+    micropixel_call_meetings_t meetings_{};
+    int64_t meetings_fetched_us_{};
+    int64_t meetings_tried_us_{};
 
     // Call task only.
     char callee_[MICROPIXEL_CALL_MAX_CALLEE_BYTES + 1U]{};
+    uint32_t ring_timeout_ms_{kRingTimeoutMs};
     char call_id_[64]{};
     char url_[160]{};
     char token_[1024]{};
