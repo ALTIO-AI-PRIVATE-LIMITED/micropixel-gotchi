@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  Runs inside the Recall.ai bot's browser, which is in the Google Meet call.
+  - getUserMedia() here is the meeting's audio: publish it to the LiveKit room
+    so the Gotchi plays it.
+  - Audio this page plays goes into the meeting: play the Gotchi's mic track.
+  The room URL and token come in the fragment (#url=...&token=...).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<title>CGotchi</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; color: #fc8c00;
+    font: 700 96px system-ui, sans-serif; display: flex; align-items: center; justify-content: center; }
+  small { display: block; font-size: 32px; color: #888; text-align: center; }
+</style>
+</head>
+<body>
+<div>CGotchi<small id="status">connecting</small></div>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@2.5.7/dist/livekit-client.umd.js"></script>
+<script>
+  const { Room, RoomEvent, Track } = LivekitClient;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const status = (text) => { document.getElementById('status').textContent = text; console.log(text); };
+
+  async function start() {
+    const room = new Room();
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      if (track.kind === Track.Kind.Audio) {
+        document.body.appendChild(track.attach()); // Plays into the meeting.
+        status('Gotchi connected');
+      }
+    });
+    room.on(RoomEvent.ParticipantDisconnected, () => status('Gotchi left'));
+    room.on(RoomEvent.Disconnected, () => status('disconnected'));
+
+    await room.connect(params.get('url'), params.get('token'));
+    // Raw meeting audio: the Gotchi does its own echo cancellation.
+    const meeting = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+    });
+    await room.localParticipant.publishTrack(meeting.getAudioTracks()[0], {
+      name: 'meeting',
+      source: Track.Source.Microphone,
+    });
+    status('in the meeting');
+  }
+
+  start().catch((err) => status(`error: ${err.message}`));
+</script>
+</body>
+</html>
