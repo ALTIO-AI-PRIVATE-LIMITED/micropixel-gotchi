@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "sdk/call.hpp"
 #include "sdk/devices.hpp"
 #include "sdk/geometry.hpp"
 #include "sdk/types.hpp"
@@ -39,6 +40,8 @@ enum class EventType : uint16_t {
     kPeerPacket,
     kPeerState,
     kPeerCandidate,
+    // Call 1.0.
+    kCallState,
 };
 
 enum class TouchPhase : uint8_t {
@@ -376,6 +379,25 @@ class PeerRadioEvent final {
     friend class Event;
 };
 
+// The call changed phase; Call::State() has the details.
+class CallEvent final {
+   public:
+    [[nodiscard]] constexpr TimePoint timestamp() const { return timestamp_; }
+    [[nodiscard]] constexpr CallPhase phase() const { return phase_; }
+    [[nodiscard]] constexpr CallEndReason end_reason() const { return end_reason_; }
+
+   private:
+    constexpr CallEvent() = default;
+    constexpr CallEvent(TimePoint timestamp, CallPhase phase, CallEndReason end_reason)
+        : timestamp_(timestamp), phase_(phase), end_reason_(end_reason) {}
+
+    TimePoint timestamp_{};
+    CallPhase phase_{CallPhase::kIdle};
+    CallEndReason end_reason_{CallEndReason::kNone};
+    friend class Application;
+    friend class Event;
+};
+
 class Event final {
    public:
     constexpr Event() = default;
@@ -406,6 +428,9 @@ class Event final {
                        type_ == EventType::kPeerCandidate
                    ? &peer_radio_
                    : nullptr;
+    }
+    [[nodiscard]] constexpr const CallEvent* call() const {
+        return type_ == EventType::kCallState ? &call_ : nullptr;
     }
     // True when the Runtime-owned gamepad (Application::gamepad()) took this
     // touch, key or axis before it reached the App; UI code skips such events.
@@ -467,6 +492,9 @@ class Event final {
     constexpr Event(EventType type, PeerRadioEvent peer_radio)
         : type_(type), timestamp_(peer_radio.timestamp()), peer_radio_(peer_radio) {}
 
+    explicit constexpr Event(CallEvent call)
+        : type_(EventType::kCallState), timestamp_(call.timestamp()), call_(call) {}
+
     explicit constexpr Event(PcmStreamEvent low_water)
         : type_(EventType::kPcmStreamLowWater), timestamp_(low_water.timestamp()), pcm_stream_(low_water) {}
 
@@ -484,6 +512,7 @@ class Event final {
     PcmStreamEvent pcm_stream_{};
     MicrophoneEvent microphone_{};
     PeerRadioEvent peer_radio_{};
+    CallEvent call_{};
     bool gamepad_handled_{};
     friend class Application;
 };

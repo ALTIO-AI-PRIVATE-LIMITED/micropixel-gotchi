@@ -92,7 +92,16 @@ esp_err_t Es7210Microphone::ConfigureCodec() {
 }
 
 int32_t Es7210Microphone::Start(device::MicrophoneSampleSink sink, void* context, uint8_t gain_db) {
-    if (task_ == nullptr || sink == nullptr) {
+    return StartCapture(sink, nullptr, context, gain_db);
+}
+
+int32_t Es7210Microphone::StartWithReference(device::MicrophoneReferenceSink sink, void* context, uint8_t gain_db) {
+    return StartCapture(nullptr, sink, context, gain_db);
+}
+
+int32_t Es7210Microphone::StartCapture(device::MicrophoneSampleSink sink, device::MicrophoneReferenceSink reference_sink,
+                                       void* context, uint8_t gain_db) {
+    if (task_ == nullptr || (sink == nullptr && reference_sink == nullptr)) {
         return MICROPIXEL_STATUS_UNSUPPORTED;
     }
     if (running_.load(std::memory_order_acquire)) {
@@ -118,6 +127,7 @@ int32_t Es7210Microphone::Start(device::MicrophoneSampleSink sink, void* context
         return MICROPIXEL_STATUS_INTERNAL;
     }
     sink_ = sink;
+    reference_sink_ = reference_sink;
     sink_context_ = context;
     (void)xSemaphoreTake(idle_, 0U);
     running_.store(true, std::memory_order_release);
@@ -137,6 +147,7 @@ int32_t Es7210Microphone::Stop() {
     (void)i2s_channel_disable(rx_);
     (void)codec_if_->enable(codec_if_, false);
     sink_ = nullptr;
+    reference_sink_ = nullptr;
     sink_context_ = nullptr;
     ESP_LOGI(config_.log_tag, "capture off");
     return idle ? MICROPIXEL_STATUS_OK : MICROPIXEL_STATUS_TIMEOUT;
@@ -174,12 +185,19 @@ void Es7210Microphone::Run() {
                 // little extra keeps meters lively without clipping it.
                 const int32_t boosted = static_cast<int32_t>(interleaved_[frame * kSlots]) * kTdmGain;
                 mono_[frame] = static_cast<int16_t>(boosted > 32767 ? 32767 : (boosted < -32768 ? -32768 : boosted));
+                // Slot 2 is the ES8311 output looped back: the echo reference.
+                pairs_[frame * 2U] = mono_[frame];
+                pairs_[frame * 2U + 1U] = interleaved_[frame * kSlots + kReferenceSlot];
                 for (uint32_t slot = 0U; slot < kSlots; ++slot) {
                     const int32_t magnitude = std::abs(static_cast<int32_t>(interleaved_[frame * kSlots + slot]));
                     peak[slot] = magnitude > peak[slot] ? magnitude : peak[slot];
                 }
             }
-            sink_(sink_context_, mono_, frames);
+            if (reference_sink_ != nullptr) {
+                reference_sink_(sink_context_, pairs_, frames);
+            } else {
+                sink_(sink_context_, mono_, frames);
+            }
             frames_since_log += frames;
             if (frames_since_log >= config_.sample_rate) {
                 if (logged_seconds < kLevelLogSeconds) {

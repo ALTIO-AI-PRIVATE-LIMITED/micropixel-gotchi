@@ -72,6 +72,11 @@ idf_component_register(
     REQUIRES ${micropixel_requires}
 )
 
+if(CONFIG_MICROPIXEL_BOARD_CHEEKO_GOTCHI)
+    idf_component_optional_requires(PRIVATE esp_http_client livekit__livekit espressif__esp_capture
+                                    tempotian__av_render espressif__esp_audio_codec espressif__esp_codec_dev)
+endif()
+
 # A stable mutable font proxy is populated after lv_init and before widgets.
 # Host UI and Guest system handles share the same Tiny TTF implementation.
 idf_component_get_property(micropixel_lvgl_lib lvgl__lvgl COMPONENT_LIB)

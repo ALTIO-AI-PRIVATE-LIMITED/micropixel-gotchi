@@ -9,6 +9,7 @@
 #include "device/contracts/battery.hpp"
 #include "device/contracts/board_info.hpp"
 #include "device/contracts/devices.hpp"
+#include "device/contracts/call.hpp"
 #include "device/contracts/gpio.hpp"
 #include "device/contracts/graphics.hpp"
 #include "device/contracts/haptics.hpp"
@@ -115,10 +116,25 @@ class MicrophoneService final {
 
     [[nodiscard]] uint32_t SampleRate() const { return implementation_.SampleRate(); }
     [[nodiscard]] DeviceResult<void> Start(MicrophoneSampleSink sink, void* context, uint8_t gain_db) const;
+    [[nodiscard]] DeviceResult<void> StartWithReference(MicrophoneReferenceSink sink, void* context,
+                                                        uint8_t gain_db) const;
     [[nodiscard]] DeviceResult<void> Stop() const;
 
    private:
     Microphone& implementation_;
+};
+
+class CallService final {
+   public:
+    explicit CallService(Call& implementation) : implementation_(implementation) {}
+
+    [[nodiscard]] micropixel_call_state_t State() const { return implementation_.State(); }
+    [[nodiscard]] DeviceResult<void> Dial(const char* callee, CallStateSink sink, void* context) const;
+    [[nodiscard]] DeviceResult<void> HangUp() const;
+    void Release() const { implementation_.Release(); }
+
+   private:
+    Call& implementation_;
 };
 
 class PeerRadioService final {
@@ -225,7 +241,7 @@ class DeviceServices final {
    public:
     DeviceServices(Graphics& graphics, DisplayInfo display, Input& input, Audio& audio, Random& random,
                    DeviceCatalog& devices, Sensors& sensors, Gpio& gpio, Haptics& haptics, Battery& battery,
-                   HidKeyboard& hid_keyboard, Microphone& microphone, PeerRadio& peer_radio)
+                   HidKeyboard& hid_keyboard, Microphone& microphone, PeerRadio& peer_radio, Call& call)
         : graphics_(graphics, display),
           input_(input),
           audio_(audio),
@@ -237,7 +253,8 @@ class DeviceServices final {
           power_info_(devices, battery),
           hid_keyboard_(hid_keyboard),
           microphone_(microphone),
-          peer_radio_(peer_radio) {}
+          peer_radio_(peer_radio),
+          call_(call) {}
     DeviceServices(const DeviceServices&) = delete;
     DeviceServices& operator=(const DeviceServices&) = delete;
 
@@ -277,6 +294,9 @@ class DeviceServices final {
     [[nodiscard]] PeerRadioService& peer_radio() {  // NOLINT(readability-identifier-naming)
         return peer_radio_;
     }
+    [[nodiscard]] CallService& call() {  // NOLINT(readability-identifier-naming)
+        return call_;
+    }
 
    private:
     GraphicsService graphics_;
@@ -291,6 +311,7 @@ class DeviceServices final {
     HidKeyboardService hid_keyboard_;
     MicrophoneService microphone_;
     PeerRadioService peer_radio_;
+    CallService call_;
 };
 
 }  // namespace micropixel::device

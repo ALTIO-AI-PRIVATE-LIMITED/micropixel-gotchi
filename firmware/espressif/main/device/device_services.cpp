@@ -154,7 +154,18 @@ DeviceResult<void> MicrophoneService::Start(MicrophoneSampleSink sink, void* con
     return StatusResult(implementation_.Start(sink, context, gain_db));
 }
 
+DeviceResult<void> MicrophoneService::StartWithReference(MicrophoneReferenceSink sink, void* context,
+                                                         uint8_t gain_db) const {
+    return StatusResult(implementation_.StartWithReference(sink, context, gain_db));
+}
+
 DeviceResult<void> MicrophoneService::Stop() const { return StatusResult(implementation_.Stop()); }
+
+DeviceResult<void> CallService::Dial(const char* callee, CallStateSink sink, void* context) const {
+    return StatusResult(implementation_.Dial(callee, sink, context));
+}
+
+DeviceResult<void> CallService::HangUp() const { return StatusResult(implementation_.HangUp()); }
 
 DeviceResult<void> PeerRadioService::Start(const PeerRadioCallbacks& callbacks) const {
     return StatusResult(implementation_.Start(callbacks));

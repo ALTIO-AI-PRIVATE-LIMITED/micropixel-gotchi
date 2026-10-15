@@ -62,6 +62,10 @@
 #define MICROPIXEL_PEER_RADIO_INTERFACE_MINOR 0U
 /* Largest Guest payload in one Peer Radio packet. */
 #define MICROPIXEL_PEER_RADIO_MAX_PAYLOAD 240U
+#define MICROPIXEL_CALL_INTERFACE_MAJOR 1U
+#define MICROPIXEL_CALL_INTERFACE_MINOR 0U
+/* Longest callee name, without the terminating NUL. */
+#define MICROPIXEL_CALL_MAX_CALLEE_BYTES 31U
 #define MICROPIXEL_DEVICES_LIST_PAGE_SIZE 16U
 #define MICROPIXEL_DEVICE_NAME_MAX_BYTES 39U
 
@@ -118,6 +122,7 @@ typedef enum micropixel_service_id {
     MICROPIXEL_SERVICE_HID_KEYBOARD = 24,
     MICROPIXEL_SERVICE_MICROPHONE = 25,
     MICROPIXEL_SERVICE_PEER_RADIO = 26,
+    MICROPIXEL_SERVICE_CALL = 27,
 } micropixel_service_id_t;
 
 typedef enum micropixel_service_flag {
@@ -764,6 +769,68 @@ typedef struct micropixel_peer_radio_candidate_event_payload {
     int8_t rssi;
     uint8_t reserved0[7];
 } micropixel_peer_radio_candidate_event_payload_t;
+
+/* Voice call to a phone. The Host asks the board's call server for a room,
+   the server rings the callee's phone, and the Host joins the room with the
+   built-in speaker and microphones. One call at a time; the call ends with
+   the session. STATE fires on every phase change and is advisory: GET_STATE
+   always has the current phase. */
+typedef enum micropixel_call_method {
+    MICROPIXEL_CALL_METHOD_GET_STATE = 1,
+    MICROPIXEL_CALL_METHOD_DIAL = 2,
+    MICROPIXEL_CALL_METHOD_HANG_UP = 3,
+} micropixel_call_method_t;
+
+typedef enum micropixel_call_event_id {
+    MICROPIXEL_CALL_EVENT_STATE = 1,
+} micropixel_call_event_id_t;
+
+typedef enum micropixel_call_phase {
+    MICROPIXEL_CALL_PHASE_IDLE = 0,
+    /* Asking the call server for a room. */
+    MICROPIXEL_CALL_PHASE_DIALING = 1,
+    /* In the room; the phone is ringing. */
+    MICROPIXEL_CALL_PHASE_RINGING = 2,
+    /* The callee answered; audio flows both ways. */
+    MICROPIXEL_CALL_PHASE_CONNECTED = 3,
+} micropixel_call_phase_t;
+
+/* Why the last call ended, reported with the move back to IDLE. */
+typedef enum micropixel_call_end_reason {
+    MICROPIXEL_CALL_END_NONE = 0,
+    MICROPIXEL_CALL_END_HUNG_UP = 1,
+    MICROPIXEL_CALL_END_REMOTE_HUNG_UP = 2,
+    MICROPIXEL_CALL_END_NO_ANSWER = 3,
+    MICROPIXEL_CALL_END_FAILED = 4,
+} micropixel_call_end_reason_t;
+
+typedef enum micropixel_call_flag {
+    /* The board can call and its firmware has a call server configured. */
+    MICROPIXEL_CALL_FLAG_AVAILABLE = 1U << 0U,
+} micropixel_call_flag_t;
+
+typedef struct micropixel_call_state {
+    uint32_t size;
+    uint32_t flags;
+    uint8_t phase;
+    uint8_t end_reason;
+    uint16_t reserved0;
+    /* Time since the callee answered, while CONNECTED. */
+    uint32_t connected_ms;
+} micropixel_call_state_t;
+
+typedef struct micropixel_call_dial_request {
+    uint32_t size;
+    /* NUL-terminated callee name the call server knows, e.g. "iphone". */
+    char callee[MICROPIXEL_CALL_MAX_CALLEE_BYTES + 1U];
+} micropixel_call_dial_request_t;
+
+typedef struct micropixel_call_state_event_payload {
+    uint8_t phase;
+    uint8_t end_reason;
+    uint16_t reserved0;
+    uint32_t reserved1[3];
+} micropixel_call_state_event_payload_t;
 
 typedef enum micropixel_graphics_method {
     MICROPIXEL_GRAPHICS_METHOD_GET_INFO = 1,
@@ -1986,6 +2053,11 @@ MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_state_event_payload_t)
                              "micropixel_peer_radio_state_event_payload_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_candidate_event_payload_t) == 16U,
                              "micropixel_peer_radio_candidate_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_state_t) == 16U, "micropixel_call_state_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_dial_request_t) == 36U,
+                             "micropixel_call_dial_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_call_state_event_payload_t) == 16U,
+                             "micropixel_call_state_event_payload_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_timer_event_payload_t) == 16U,
                              "micropixel_timer_event_payload_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_touch_event_payload_t) == 16U,

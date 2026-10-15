@@ -521,3 +521,24 @@ config MICROPIXEL_SYSTEM_TTF
     help
         System and Guest fonts share Tiny TTF. Downloaded Noto language packs
         are signed App Store components downloaded over Control QUIC and mapped from NOR.
+
+menu "MicroPixel voice calls"
+    depends on MICROPIXEL_BOARD_CHEEKO_GOTCHI
+
+    config MICROPIXEL_CALL_SERVER_URL
+        string "Call server base URL"
+        default ""
+        help
+            HTTPS base URL of the call server (call/server), for example
+            https://gotchi-call.vercel.app. Empty leaves calling off. Set it
+            with MICROPIXEL_CALL_SERVER_URL in the repository-root .env.
+
+    config MICROPIXEL_CALL_DEVICE_SECRET
+        string "Call server device secret"
+        default ""
+        help
+            Bearer secret the call server expects from this device
+            (DEVICE_SECRET on the server). Set it with
+            MICROPIXEL_CALL_DEVICE_SECRET in the repository-root .env.
+
+endmenu

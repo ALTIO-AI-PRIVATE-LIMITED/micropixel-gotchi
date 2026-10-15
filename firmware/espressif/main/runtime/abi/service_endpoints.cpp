@@ -479,6 +479,40 @@ int32_t PeerRadioServiceEndpoint::Call(uint32_t method_id, const uint8_t* reques
     }
 }
 
+ServiceDescriptor CallServiceEndpoint::Describe() const {
+    return ServiceDescriptor{
+        .service_id = MICROPIXEL_SERVICE_CALL,
+        .interface_major = MICROPIXEL_CALL_INTERFACE_MAJOR,
+        .interface_minor = MICROPIXEL_CALL_INTERFACE_MINOR,
+        .flags = MICROPIXEL_SERVICE_FLAG_CALL | MICROPIXEL_SERVICE_FLAG_EVENTS,
+        .max_request_bytes = sizeof(micropixel_call_dial_request_t),
+        .max_response_bytes = sizeof(micropixel_call_state_t),
+    };
+}
+
+int32_t CallServiceEndpoint::Call(uint32_t method_id, const uint8_t* request, uint32_t request_size,
+                                  uint8_t* response, uint32_t response_capacity, uint32_t& response_size_out) {
+    switch (method_id) {
+        case MICROPIXEL_CALL_METHOD_GET_STATE:
+            return EmptyRequest(request_size)
+                       ? WriteValue(context_.CallState(), response, response_capacity, response_size_out)
+                       : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        case MICROPIXEL_CALL_METHOD_DIAL: {
+            micropixel_call_dial_request_t wire{};
+            if (!ReadRequest(request, request_size, wire)) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            wire.callee[sizeof(wire.callee) - 1U] = '\0';
+            return ResultStatus(context_.CallDial(wire.callee));
+        }
+        case MICROPIXEL_CALL_METHOD_HANG_UP:
+            return EmptyRequest(request_size) ? ResultStatus(context_.CallHangUp())
+                                              : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        default:
+            return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
+}
+
 SystemServiceEndpoint::SystemServiceEndpoint(std::string_view effective_locale,
                                              const micropixel_system_launch_arguments_response_t& launch_arguments)
     : launch_arguments_(launch_arguments) {

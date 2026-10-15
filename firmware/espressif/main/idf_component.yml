@@ -100,3 +100,10 @@ dependencies:
     version: "1.1.0"
     rules:
       - if: "target == esp32p4"
+  # Gotchi voice calls (platform/call). Only the Gotchi profile pulls the
+  # WebRTC stack; other ESP32-S3 boards never download or build it.
+  livekit/livekit:
+    version: "0.3.11"
+    rules:
+      - if: "target == esp32s3"
+      - if: "$CONFIG{MICROPIXEL_BOARD_CHEEKO_GOTCHI} == True"

@@ -25,6 +25,7 @@
 #include "platform/boards/cheeko-gotchi/sensor_peripheral.hpp"
 #include "platform/boards/esp32-s3-common/display_shadow.hpp"
 #include "platform/buses/i2c_executor.hpp"
+#include "platform/call/livekit_call.hpp"
 #include "platform/controllers/brightness_curve.hpp"
 #include "platform/input/esp_lcd_touch_input.hpp"
 #include "platform/input/gpio_key_input.hpp"
@@ -290,6 +291,16 @@ class CheekoGotchiBoard final : public Board {
             registration.SetPeerRadio(peer_radio_);
         } else {
             ESP_LOGW(kTag, "peer radio unavailable for this boot: %s", esp_err_to_name(radio_status));
+        }
+        // Calls borrow the speaker stream and the microphones (with loopback)
+        // while they run; the call buffers and task live in PSRAM.
+        if (audio_status == ESP_OK && microphone_status == ESP_OK) {
+            static MICROPIXEL_EXT_RAM_BSS call::LiveKitCall livekit_call{context.AudioEngine(), microphone_};
+            if (const esp_err_t call_status = livekit_call.Initialize(); call_status == ESP_OK) {
+                registration.SetCall(livekit_call);
+            } else {
+                ESP_LOGW(kTag, "voice calls unavailable for this boot: %s", esp_err_to_name(call_status));
+            }
         }
         bool registered = true;
         if (sensors_.acceleration_available()) {

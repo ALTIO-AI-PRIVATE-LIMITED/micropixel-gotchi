@@ -110,6 +110,17 @@ class PeerRadioServiceEndpoint final : public ServiceHandler {
     GuestContext& context_;
 };
 
+class CallServiceEndpoint final : public ServiceHandler {
+   public:
+    explicit CallServiceEndpoint(GuestContext& context) : context_(context) {}
+    [[nodiscard]] ServiceDescriptor Describe() const override;
+    [[nodiscard]] int32_t Call(uint32_t method_id, const uint8_t* request, uint32_t request_size, uint8_t* response,
+                               uint32_t response_capacity, uint32_t& response_size_out) override;
+
+   private:
+    GuestContext& context_;
+};
+
 class SystemServiceEndpoint final : public ServiceHandler {
    public:
     SystemServiceEndpoint(std::string_view effective_locale,

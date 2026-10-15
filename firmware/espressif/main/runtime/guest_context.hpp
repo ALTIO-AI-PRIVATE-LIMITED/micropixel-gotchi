@@ -18,6 +18,7 @@
 #include "runtime/services/gpio_service.hpp"
 #include "runtime/services/haptics_service.hpp"
 #include "runtime/services/microphone_service.hpp"
+#include "runtime/services/call_service.hpp"
 #include "runtime/services/peer_radio_service.hpp"
 #include "runtime/services/raster_service.hpp"
 #include "runtime/services/sensor_service.hpp"
@@ -277,6 +278,9 @@ class GuestContext final {
                                                                                        uint32_t max_samples) {
         return microphone_.Read(samples_out, max_samples);
     }
+    [[nodiscard]] micropixel_call_state_t CallState() const { return call_.State(); }
+    [[nodiscard]] ServiceResult<void> CallDial(const char* callee) { return call_.Dial(callee); }
+    [[nodiscard]] ServiceResult<void> CallHangUp() { return call_.HangUp(); }
     [[nodiscard]] micropixel_peer_radio_state_t PeerRadioState() const { return peer_radio_.State(); }
     [[nodiscard]] ServiceResult<void> PeerRadioStart() { return peer_radio_.Start(); }
     [[nodiscard]] ServiceResult<void> PeerRadioStop() { return peer_radio_.Stop(); }
@@ -380,6 +384,7 @@ class GuestContext final {
     HapticsService haptics_;
     MicrophoneService microphone_;
     PeerRadioService peer_radio_;
+    CallService call_;
     ResourceService resources_;
     AudioPlaybackService audio_playback_;
     PcmStreamService pcm_stream_;
@@ -404,6 +409,7 @@ class GuestContext final {
     HidKeyboardServiceEndpoint hid_keyboard_endpoint_;
     MicrophoneServiceEndpoint microphone_endpoint_;
     PeerRadioServiceEndpoint peer_radio_endpoint_;
+    CallServiceEndpoint call_endpoint_;
     ServiceRegistry service_registry_;
     uint32_t core_sequence_{};
     bool suspended_{};

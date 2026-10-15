@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "sdk/audio.hpp"
+#include "sdk/call.hpp"
 #include "sdk/clock.hpp"
 #include "sdk/devices.hpp"
 #include "sdk/event.hpp"
@@ -74,6 +75,7 @@ class Application final {
         return Microphone{Microphone::CapabilityToken{}};
     }
     [[nodiscard]] constexpr PeerRadio peer_radio() const noexcept { return PeerRadio{PeerRadio::CapabilityToken{}}; }
+    [[nodiscard]] constexpr Call call() const noexcept { return Call{Call::CapabilityToken{}}; }
 
     template <typename Handler>
     void Run(Handler&& handler) const {

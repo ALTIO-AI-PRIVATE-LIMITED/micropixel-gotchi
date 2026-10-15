@@ -245,6 +245,8 @@ build_profile() {
             printf '# CONFIG_MICROPIXEL_REMOTE_CONTROL_ALLOW_UNVERIFIED_TLS is not set\n'
         fi
         printf 'CONFIG_MICROPIXEL_REMOTE_CONTROL_TRUSTED_CA_DER_BASE64="%s"\n' "$trusted_ca"
+        printf 'CONFIG_MICROPIXEL_CALL_SERVER_URL="%s"\n' "${MICROPIXEL_CALL_SERVER_URL:-}"
+        printf 'CONFIG_MICROPIXEL_CALL_DEVICE_SECRET="%s"\n' "${MICROPIXEL_CALL_DEVICE_SECRET:-}"
     } >"$env_defaults_updated"
     if [[ ! -f "$env_defaults" ]] || ! cmp -s "$env_defaults_updated" "$env_defaults"; then
         mv "$env_defaults_updated" "$env_defaults"
@@ -277,6 +279,9 @@ build_profile() {
             /^CONFIG_LV_MEM_SIZE_KILOBYTES=/ ||
             /^CONFIG_LV_MEM_POOL_EXPAND_SIZE_KILOBYTES=/ ||
             /^CONFIG_LV_ASSERT_HANDLER_INCLUDE=/ { next }
+            # Call server settings come from the root .env on every build.
+            /^CONFIG_MICROPIXEL_CALL_SERVER_URL=/ ||
+            /^CONFIG_MICROPIXEL_CALL_DEVICE_SECRET=/ { next }
             /^CONFIG_LV_OBJ_STYLE_CACHE=/ || /^# CONFIG_LV_OBJ_STYLE_CACHE is not set$/ {
                 print "CONFIG_LV_OBJ_STYLE_CACHE=y"
                 saw_lv_style_cache = 1

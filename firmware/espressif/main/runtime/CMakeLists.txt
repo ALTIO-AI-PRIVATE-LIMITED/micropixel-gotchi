@@ -26,6 +26,7 @@ list(APPEND micropixel_sources
     "runtime/resources/resource_service.cpp"
     "runtime/services/storage_service.cpp"
     "runtime/services/app_storage.cpp"
+    "runtime/services/call_service.cpp"
     "runtime/services/direct_surface_service.cpp"
     "runtime/services/gpio_service.cpp"
     "runtime/services/haptics_service.cpp"

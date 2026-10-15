@@ -142,6 +142,14 @@ bool Application::DecodeEventInternal(Event& event, uint64_t timeout_us) const {
         }
     }
 
+    if (raw.service_id == MICROPIXEL_SERVICE_CALL && raw.event_id == MICROPIXEL_CALL_EVENT_STATE) {
+        micropixel_call_state_event_payload_t payload{};
+        CopyBytes(&payload, raw.payload, sizeof(payload));
+        event = Event{CallEvent{timestamp, static_cast<CallPhase>(payload.phase),
+                                static_cast<CallEndReason>(payload.end_reason)}};
+        return true;
+    }
+
     if (raw.service_id == MICROPIXEL_SERVICE_GRAPHICS && raw.event_id == MICROPIXEL_GRAPHICS_EVENT_SURFACE_RELEASED) {
         micropixel_surface_event_payload_t payload{};
         CopyBytes(&payload, raw.payload, sizeof(payload));

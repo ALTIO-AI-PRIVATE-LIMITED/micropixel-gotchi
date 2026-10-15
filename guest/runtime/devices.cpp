@@ -1,6 +1,7 @@
 #include "sdk/devices.hpp"
 
 #include "runtime/service_binding.hpp"
+#include "sdk/call.hpp"
 #include "sdk/gpio.hpp"
 #include "sdk/haptics.hpp"
 #include "sdk/hid_keyboard.hpp"
@@ -51,6 +52,13 @@ micropixel::Result<void> PeerRadioVoid(uint32_t method_id, const void* request, 
     }
     return status == MICROPIXEL_STATUS_OK ? micropixel::Result<void>{}
                                           : micropixel::Result<void>{micropixel::unexpected(ErrorFromStatus(status))};
+}
+
+ServiceCache call_service;
+
+int32_t OpenCallService() {
+    return OpenService(call_service, MICROPIXEL_SERVICE_CALL, MICROPIXEL_CALL_INTERFACE_MAJOR,
+                       MICROPIXEL_CALL_INTERFACE_MINOR);
 }
 
 }  // namespace
@@ -726,6 +734,58 @@ Result<PeerPacket> PeerRadio::Receive(uint8_t (&data)[kMaxPayload]) const {
     }
     CopyBytes(data, response + sizeof(header), header.length);
     return PeerPacket{header.length, header.rssi, header.pending, header.dropped};
+}
+
+Result<CallState> Call::State() const {
+    int32_t status = OpenCallService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_call_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(call_service, MICROPIXEL_CALL_METHOD_GET_STATE, nullptr, 0U, &response, sizeof(response),
+                         response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("call.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CallState state{};
+    state.available = (response.flags & MICROPIXEL_CALL_FLAG_AVAILABLE) != 0U;
+    state.phase = static_cast<CallPhase>(response.phase);
+    state.end_reason = static_cast<CallEndReason>(response.end_reason);
+    state.connected_ms = response.connected_ms;
+    return state;
+}
+
+Result<void> Call::Dial(const char* callee) const {
+    micropixel_call_dial_request_t request{};
+    request.size = sizeof(request);
+    uint32_t length = 0U;
+    while (callee != nullptr && callee[length] != '\0') {
+        if (length == kMaxCalleeBytes) {
+            return unexpected(ErrorFromStatus(MICROPIXEL_STATUS_INVALID_ARGUMENT));
+        }
+        request.callee[length] = callee[length];
+        ++length;
+    }
+    if (length == 0U) {
+        return unexpected(ErrorFromStatus(MICROPIXEL_STATUS_INVALID_ARGUMENT));
+    }
+    int32_t status = OpenCallService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(call_service, MICROPIXEL_CALL_METHOD_DIAL, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> Call::HangUp() const {
+    int32_t status = OpenCallService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(call_service, MICROPIXEL_CALL_METHOD_HANG_UP, nullptr, 0U);
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
 }
 
 }  // namespace micropixel

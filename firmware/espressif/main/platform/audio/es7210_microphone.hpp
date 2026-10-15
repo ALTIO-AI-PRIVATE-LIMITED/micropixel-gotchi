@@ -41,6 +41,8 @@ class Es7210Microphone final : public device::Microphone {
 
     [[nodiscard]] uint32_t SampleRate() const override { return task_ != nullptr ? config_.sample_rate : 0U; }
     [[nodiscard]] int32_t Start(device::MicrophoneSampleSink sink, void* context, uint8_t gain_db) override;
+    [[nodiscard]] int32_t StartWithReference(device::MicrophoneReferenceSink sink, void* context,
+                                             uint8_t gain_db) override;
     [[nodiscard]] int32_t Stop() override;
 
    private:
@@ -49,7 +51,10 @@ class Es7210Microphone final : public device::Microphone {
     // TDM slots per frame: MIC1..MIC4.
     static constexpr uint32_t kSlots = 4U;
     static constexpr int32_t kTdmGain = 2;
+    static constexpr uint32_t kReferenceSlot = 2U;
 
+    [[nodiscard]] int32_t StartCapture(device::MicrophoneSampleSink sink, device::MicrophoneReferenceSink reference_sink,
+                                       void* context, uint8_t gain_db);
     static void TaskEntry(void* argument);
     void Run();
     [[nodiscard]] esp_err_t ConfigureCodec();
@@ -64,9 +69,11 @@ class Es7210Microphone final : public device::Microphone {
     i2s_chan_handle_t rx_{};
     std::atomic<bool> running_{};
     device::MicrophoneSampleSink sink_{};
+    device::MicrophoneReferenceSink reference_sink_{};
     void* sink_context_{};
     int16_t interleaved_[kChunkFrames * kSlots]{};
     int16_t mono_[kChunkFrames]{};
+    int16_t pairs_[kChunkFrames * 2U]{};
 };
 
 }  // namespace micropixel::platform::audio
