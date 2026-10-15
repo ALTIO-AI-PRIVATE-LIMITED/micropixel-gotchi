@@ -21,11 +21,12 @@ export async function deleteRoom(name) {
   }
 }
 
-export async function joinToken(room, identity, name) {
+// ttl: how long the token can be used to join (the Meet bot may join late).
+export async function joinToken(room, identity, name, ttl = '10m') {
   const token = new AccessToken(env('LIVEKIT_API_KEY'), env('LIVEKIT_API_SECRET'), {
     identity,
     name,
-    ttl: '10m',
+    ttl,
   });
   token.addGrant({ roomJoin: true, room, canPublish: true, canSubscribe: true });
   return token.toJwt();
