@@ -1,5 +1,6 @@
 // GET /api/google/callback  (Google redirects here after /api/google/login)
-import { env, publicUrl } from '../../lib/config.js';
+import { env } from '../../lib/config.js';
+import { publicUrl } from '../../lib/meet.js';
 
 const escape = (s) => String(s).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 

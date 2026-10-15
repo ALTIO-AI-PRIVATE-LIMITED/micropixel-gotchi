@@ -1,9 +1,0 @@
-{
-  "name": "gotchi-meet-server",
-  "private": true,
-  "type": "module",
-  "engines": { "node": ">=20" },
-  "dependencies": {
-    "livekit-server-sdk": "2.19.1"
-  }
-}

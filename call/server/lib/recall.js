@@ -2,7 +2,7 @@
 import { env } from './config.js';
 
 function base() {
-  return `https://${env('RECALL_REGION', 'us-west-2')}.recall.ai/api/v1`;
+  return `https://${process.env.RECALL_REGION || 'us-west-2'}.recall.ai/api/v1`;
 }
 
 async function call(method, path, body) {

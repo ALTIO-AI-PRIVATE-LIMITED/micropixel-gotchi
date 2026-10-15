@@ -1,9 +1,11 @@
 // GET /api/meetings  (from the Gotchi)   Auth: Bearer DEVICE_SECRET
 // Returns the Meet meetings that are on now or start in the next 24 hours:
-// {"now": 1760536800, "meetings": [{"id", "title", "start", "end", "label"}]}
+// {"now": 1760536800, "meetings": [{"key", "title", "start", "end", "label"}]}
 // start/end are Unix seconds; label is the start time in the calendar's time zone.
-import { deviceAuthorized } from '../lib/config.js';
+// Join one with POST /api/call {"to": "meet:<key>"}.
+import { authorized } from '../lib/config.js';
 import { upcomingMeetings } from '../lib/google.js';
+import { meetingKey } from '../lib/meet.js';
 
 // The Gotchi's font is ASCII only.
 function ascii(text) {
@@ -17,13 +19,13 @@ function label(date, timeZone) {
 }
 
 export default async function handler(req, res) {
-  if (!deviceAuthorized(req)) return res.status(401).json({ error: 'unauthorized' });
+  if (!authorized(req, 'DEVICE_SECRET')) return res.status(401).json({ error: 'unauthorized' });
   try {
     const { timeZone, items } = await upcomingMeetings();
     const meetings = items.slice(0, 8).map((e) => {
       const start = new Date(e.start.dateTime);
       return {
-        id: e.id,
+        key: meetingKey(e.id),
         title: ascii(e.summary),
         start: Math.floor(start.getTime() / 1000),
         end: Math.floor(new Date(e.end.dateTime).getTime() / 1000),

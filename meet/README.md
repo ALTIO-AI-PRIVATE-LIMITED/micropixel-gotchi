@@ -5,15 +5,14 @@ joins each one when it starts, plays the meeting through its speaker and sends y
 mic. There is no screen or video.
 
 ```
-Google Calendar <-- meet server (Vercel) --> Recall.ai bot "CGotchi" in the Meet
+Google Calendar <-- call server (Vercel) --> Recall.ai bot "CGotchi" in the Meet
                         |                         | its web page (public/bot.html)
 Gotchi --- LiveKit room +-------------------------+ meeting audio <-> Gotchi audio
 ```
 
 The bot's web page is a LiveKit participant. Its microphone is the meeting audio, which it sends
-to the Gotchi, and whatever it plays (the Gotchi's mic) goes into the meeting. The Gotchi side is
-the same LiveKit audio as Gotchi Call (`call/firmware`), whose board, display and audio code it
-reuses.
+to the Gotchi, and whatever it plays (the Gotchi's mic) goes into the meeting. On the Gotchi it is
+an ordinary call on MicroPixel's Call service, so the audio is the same as Gotchi Call.
 
 ## Gotchi controls
 
@@ -37,35 +36,28 @@ leaves and the Gotchi goes back to the list.
   screen (External, add yourself as a test user) and create an OAuth client of type "Web
   application" with the redirect URI `https://<your-server>/api/google/callback`.
 
-## 2. Meet server
+## 2. Call server
 
-Deploy `server/` to Vercel as its own project (`vercel deploy` from that folder) and set:
+The Meet routes live in the Gotchi Call server (`call/server`), so deploy that (see
+`call/README.md`) and add these variables:
 
 | Variable | Value |
 |---|---|
-| `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` | From the LiveKit project settings |
 | `RECALL_API_KEY` | Your Recall.ai API key |
 | `RECALL_REGION` | Your Recall.ai region, default `us-west-2` |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The OAuth client from step 1 |
 | `GOOGLE_REFRESH_TOKEN` | From the sign-in below |
-| `DEVICE_SECRET` | Any long random string; the Gotchi sends it |
 | `PUBLIC_URL` | Optional: the server's public URL, if not its Vercel host name |
 | `BOT_NAME` | Optional: the bot's name in the meeting, default `CGotchi` |
 
 Then open `https://<your-server>/api/google/login` once, sign in, copy the refresh token it shows
 into `GOOGLE_REFRESH_TOKEN` and redeploy.
 
-Endpoints, all with `Authorization: Bearer DEVICE_SECRET`: `GET /api/meetings`,
-`POST /api/meet/join` (`{"eventId"}`), `POST /api/meet/leave` (`{"meetId", "botId"}`).
+The Gotchi uses `GET /api/meetings` for the list, then the normal call endpoints:
+`POST /api/call` with `{"to": "meet:<key>"}` sends the bot in, and `POST /api/call/end` takes it
+out. All with `Authorization: Bearer DEVICE_SECRET`.
 
-## 3. Gotchi firmware
+## 3. Gotchi app
 
-Needs ESP-IDF 5.4 or 5.5, like Gotchi Call.
-
-```sh
-cd meet/firmware
-cp secrets.defaults.example secrets.defaults   # Wi-Fi, server URL, DEVICE_SECRET
-./build.sh build flash monitor
-```
-
-This overwrites MicroPixel. To go back, flash your MicroPixel backup or rebuild MicroPixel.
+The Meet app runs on MicroPixel's Call service (branch `gotchi-meet-micropixel`, stacked on
+`gotchi-call-micropixel`). Build and install it like the Call app.

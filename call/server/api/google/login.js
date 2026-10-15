@@ -1,7 +1,8 @@
 // GET /api/google/login  (open once in your browser)
 // Signs in to Google with read-only calendar access; /api/google/callback then
 // shows the refresh token to put in GOOGLE_REFRESH_TOKEN.
-import { env, publicUrl } from '../../lib/config.js';
+import { env } from '../../lib/config.js';
+import { publicUrl } from '../../lib/meet.js';
 
 export default function handler(req, res) {
   const params = new URLSearchParams({
