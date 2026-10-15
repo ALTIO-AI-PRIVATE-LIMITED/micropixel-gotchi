@@ -1,0 +1,32 @@
+menu "Gotchi Call"
+
+    config GOTCHI_CALL_SERVER_URL
+        string "Call server URL"
+        default "https://gotchi-call.vercel.app"
+        help
+            Base URL of the call server in call/server, without a trailing slash.
+
+    config GOTCHI_CALL_DEVICE_SECRET
+        string "Device secret"
+        default ""
+        help
+            Must match DEVICE_SECRET on the call server. Keep it in
+            secrets.defaults, which git ignores.
+
+    config GOTCHI_CALL_TO
+        string "Who to call"
+        default "iphone"
+        help
+            Callee name the server knows (it maps the name to a push token).
+
+    config GOTCHI_CALL_SPEAKER_VOLUME
+        int "Default speaker volume (0-100)"
+        default 70
+        range 0 100
+
+    config GOTCHI_CALL_MIC_GAIN_DB
+        int "Microphone gain (dB)"
+        default 30
+        range 0 37
+
+endmenu
