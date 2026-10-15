@@ -16,14 +16,14 @@ an ordinary call on MicroPixel's Call service, so the audio is the same as Gotch
 
 ## Gotchi controls
 
-- **List:** Vol+ / Vol- move the selection, the middle key joins the selected meeting now. A
+- **List:** VOL- / VOL+ move the selection; BOOT or a tap joins the selected meeting now. A
   meeting is joined automatically at its start time.
-- **In a meeting:** you start **muted**. Vol+ toggles the mic (red circle = muted, green = live).
-  Vol- steps the speaker volume. The middle key leaves.
-- Hold the middle key for 2 s to power off.
+- **In a meeting:** you start **muted**. VOL+ toggles the mic (red "Muted", green "Live"). Hold
+  VOL- for a second (or press BOOT) to leave. Taps do nothing during a meeting, so a stray touch
+  can't drop you.
 
 The bot joins as a guest named "CGotchi", so the host has to let it in. The Gotchi shows
-"Waiting to be let in" until then and gives up after 10 minutes. When the meeting ends the bot
+"Waiting... to be let in" until then and gives up after 10 minutes. When the meeting ends the bot
 leaves and the Gotchi goes back to the list.
 
 ## 1. Accounts
@@ -59,5 +59,7 @@ out. All with `Authorization: Bearer DEVICE_SECRET`.
 
 ## 3. Gotchi app
 
-The Meet app runs on MicroPixel's Call service (branch `gotchi-meet-micropixel`, stacked on
-`gotchi-call-micropixel`). Build and install it like the Call app.
+The Meet app (`guest/apps/meet`) and the Call 1.1 service changes it needs (meeting list, mute,
+"meet:" calls) are on branch `gotchi-meet-micropixel`, stacked on `gotchi-call-micropixel`. Set
+`MICROPIXEL_CALL_SERVER_URL` and `MICROPIXEL_CALL_DEVICE_SECRET` in the repository-root `.env` as for
+the Call app, rebuild and flash the host firmware, then install the app.
