@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "sdk/audio.hpp"
+#include "sdk/ble_link.hpp"
 #include "sdk/clock.hpp"
 #include "sdk/devices.hpp"
 #include "sdk/event.hpp"
@@ -16,6 +17,7 @@
 #include "sdk/launch_arguments.hpp"
 #include "sdk/localization.hpp"
 #include "sdk/microphone.hpp"
+#include "sdk/network.hpp"
 #include "sdk/peer_radio.hpp"
 #include "sdk/log.hpp"
 #include "sdk/power_info.hpp"
@@ -74,6 +76,8 @@ class Application final {
         return Microphone{Microphone::CapabilityToken{}};
     }
     [[nodiscard]] constexpr PeerRadio peer_radio() const noexcept { return PeerRadio{PeerRadio::CapabilityToken{}}; }
+    [[nodiscard]] constexpr BleLink ble_link() const noexcept { return BleLink{BleLink::CapabilityToken{}}; }
+    [[nodiscard]] constexpr Network network() const noexcept { return Network{Network::CapabilityToken{}}; }
 
     template <typename Handler>
     void Run(Handler&& handler) const {

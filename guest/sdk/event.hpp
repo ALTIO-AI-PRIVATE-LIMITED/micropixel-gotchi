@@ -39,6 +39,13 @@ enum class EventType : uint16_t {
     kPeerPacket,
     kPeerState,
     kPeerCandidate,
+    // BLE Link 1.0.
+    kBleLinkInbox,
+    kBleLinkState,
+    kBleLinkRoom,
+    // Network 1.0.
+    kNetworkReady,
+    kNetworkState,
 };
 
 enum class TouchPhase : uint8_t {
@@ -376,6 +383,58 @@ class PeerRadioEvent final {
     friend class Event;
 };
 
+enum class BleLinkEventKind : uint8_t {
+    // Messages are queued; call BleLink::Read() until it returns length 0.
+    kInbox,
+    // Connection or subscriptions changed; flags() has MICROPIXEL_BLE_LINK_STATE_*.
+    kState,
+    // BULK can send again after a kRateLimited Notify().
+    kRoom,
+};
+
+class BleLinkEvent final {
+   public:
+    [[nodiscard]] constexpr TimePoint timestamp() const { return timestamp_; }
+    [[nodiscard]] constexpr BleLinkEventKind kind() const { return kind_; }
+    [[nodiscard]] constexpr uint32_t flags() const { return flags_; }
+    [[nodiscard]] constexpr uint32_t pending() const { return pending_; }
+
+   private:
+    constexpr BleLinkEvent() = default;
+
+    TimePoint timestamp_{};
+    BleLinkEventKind kind_{BleLinkEventKind::kInbox};
+    uint32_t flags_{};
+    uint32_t pending_{};
+    friend class Application;
+    friend class Event;
+};
+
+enum class NetworkEventKind : uint8_t {
+    // socket() turned readable: Accept() or Receive() on it.
+    kReady,
+    // Wi-Fi links changed; flags() has MICROPIXEL_NETWORK_STATE_*.
+    kState,
+};
+
+class NetworkEvent final {
+   public:
+    [[nodiscard]] constexpr TimePoint timestamp() const { return timestamp_; }
+    [[nodiscard]] constexpr NetworkEventKind kind() const { return kind_; }
+    [[nodiscard]] constexpr uint32_t socket() const { return socket_; }
+    [[nodiscard]] constexpr uint32_t flags() const { return flags_; }
+
+   private:
+    constexpr NetworkEvent() = default;
+
+    TimePoint timestamp_{};
+    NetworkEventKind kind_{NetworkEventKind::kReady};
+    uint32_t socket_{};
+    uint32_t flags_{};
+    friend class Application;
+    friend class Event;
+};
+
 class Event final {
    public:
     constexpr Event() = default;
@@ -406,6 +465,15 @@ class Event final {
                        type_ == EventType::kPeerCandidate
                    ? &peer_radio_
                    : nullptr;
+    }
+    [[nodiscard]] constexpr const BleLinkEvent* ble_link() const {
+        return type_ == EventType::kBleLinkInbox || type_ == EventType::kBleLinkState ||
+                       type_ == EventType::kBleLinkRoom
+                   ? &ble_link_
+                   : nullptr;
+    }
+    [[nodiscard]] constexpr const NetworkEvent* network() const {
+        return type_ == EventType::kNetworkReady || type_ == EventType::kNetworkState ? &network_ : nullptr;
     }
     // True when the Runtime-owned gamepad (Application::gamepad()) took this
     // touch, key or axis before it reached the App; UI code skips such events.
@@ -467,6 +535,12 @@ class Event final {
     constexpr Event(EventType type, PeerRadioEvent peer_radio)
         : type_(type), timestamp_(peer_radio.timestamp()), peer_radio_(peer_radio) {}
 
+    constexpr Event(EventType type, BleLinkEvent ble_link)
+        : type_(type), timestamp_(ble_link.timestamp()), ble_link_(ble_link) {}
+
+    constexpr Event(EventType type, NetworkEvent network)
+        : type_(type), timestamp_(network.timestamp()), network_(network) {}
+
     explicit constexpr Event(PcmStreamEvent low_water)
         : type_(EventType::kPcmStreamLowWater), timestamp_(low_water.timestamp()), pcm_stream_(low_water) {}
 
@@ -484,6 +558,8 @@ class Event final {
     PcmStreamEvent pcm_stream_{};
     MicrophoneEvent microphone_{};
     PeerRadioEvent peer_radio_{};
+    BleLinkEvent ble_link_{};
+    NetworkEvent network_{};
     bool gamepad_handled_{};
     friend class Application;
 };

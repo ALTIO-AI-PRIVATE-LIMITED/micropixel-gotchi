@@ -3,6 +3,7 @@
 
 #include "sdk/application.hpp"
 #include "sdk/audio.hpp"
+#include "sdk/ble_link.hpp"
 #include "sdk/cyclic_pool.hpp"
 #include "sdk/devices.hpp"
 #include "sdk/fixed_string.hpp"
@@ -18,6 +19,7 @@
 #include "sdk/launch_arguments.hpp"
 #include "sdk/localization.hpp"
 #include "sdk/microphone.hpp"
+#include "sdk/network.hpp"
 #include "sdk/peer_radio.hpp"
 #include "sdk/math.hpp"
 #include "sdk/panic.hpp"
