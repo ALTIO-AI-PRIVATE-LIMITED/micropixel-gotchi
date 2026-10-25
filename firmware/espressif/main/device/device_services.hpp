@@ -7,6 +7,7 @@
 #include "abi/micropixel_abi.h"
 #include "device/contracts/audio.hpp"
 #include "device/contracts/battery.hpp"
+#include "device/contracts/ble_link.hpp"
 #include "device/contracts/board_info.hpp"
 #include "device/contracts/devices.hpp"
 #include "device/contracts/gpio.hpp"
@@ -18,6 +19,7 @@
 #include "device/contracts/peer_radio.hpp"
 #include "device/contracts/random.hpp"
 #include "device/contracts/sensors.hpp"
+#include "device/contracts/wifi.hpp"
 
 namespace micropixel::device {
 
@@ -104,9 +106,26 @@ class HidKeyboardService final {
     [[nodiscard]] DeviceResult<void> Start() const;
     [[nodiscard]] DeviceResult<void> Key(uint8_t usage, bool pressed, uint32_t flags) const;
     [[nodiscard]] DeviceResult<void> Consumer(uint16_t usage, bool pressed) const;
+    [[nodiscard]] DeviceResult<void> Mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8_t pan) const;
+    [[nodiscard]] DeviceResult<void> ForgetBonds() const;
 
    private:
     HidKeyboard& implementation_;
+};
+
+class BleLinkService final {
+   public:
+    explicit BleLinkService(BleLink& implementation) : implementation_(implementation) {}
+
+    [[nodiscard]] micropixel_ble_link_state_t State() const { return implementation_.State(); }
+    [[nodiscard]] DeviceResult<void> Start(const BleLinkCallbacks& callbacks) const;
+    [[nodiscard]] DeviceResult<void> Stop() const;
+    [[nodiscard]] DeviceResult<void> Queue(uint8_t channel, const uint8_t* data, uint32_t length) const;
+    [[nodiscard]] DeviceResult<void> SendBulk(const uint8_t* data, uint32_t length) const;
+    [[nodiscard]] DeviceResult<void> SetValue(const uint8_t* data, uint32_t length) const;
+
+   private:
+    BleLink& implementation_;
 };
 
 class MicrophoneService final {
@@ -225,7 +244,8 @@ class DeviceServices final {
    public:
     DeviceServices(Graphics& graphics, DisplayInfo display, Input& input, Audio& audio, Random& random,
                    DeviceCatalog& devices, Sensors& sensors, Gpio& gpio, Haptics& haptics, Battery& battery,
-                   HidKeyboard& hid_keyboard, Microphone& microphone, PeerRadio& peer_radio)
+                   HidKeyboard& hid_keyboard, Microphone& microphone, PeerRadio& peer_radio, BleLink& ble_link,
+                   Wifi& wifi)
         : graphics_(graphics, display),
           input_(input),
           audio_(audio),
@@ -237,7 +257,9 @@ class DeviceServices final {
           power_info_(devices, battery),
           hid_keyboard_(hid_keyboard),
           microphone_(microphone),
-          peer_radio_(peer_radio) {}
+          peer_radio_(peer_radio),
+          ble_link_(ble_link),
+          wifi_(wifi) {}
     DeviceServices(const DeviceServices&) = delete;
     DeviceServices& operator=(const DeviceServices&) = delete;
 
@@ -277,6 +299,13 @@ class DeviceServices final {
     [[nodiscard]] PeerRadioService& peer_radio() {  // NOLINT(readability-identifier-naming)
         return peer_radio_;
     }
+    [[nodiscard]] BleLinkService& ble_link() {  // NOLINT(readability-identifier-naming)
+        return ble_link_;
+    }
+    // The Network service drives the platform Wi-Fi directly (hotspot, link info).
+    [[nodiscard]] Wifi& wifi() {  // NOLINT(readability-identifier-naming)
+        return wifi_;
+    }
 
    private:
     GraphicsService graphics_;
@@ -291,6 +320,8 @@ class DeviceServices final {
     HidKeyboardService hid_keyboard_;
     MicrophoneService microphone_;
     PeerRadioService peer_radio_;
+    BleLinkService ble_link_;
+    Wifi& wifi_;
 };
 
 }  // namespace micropixel::device

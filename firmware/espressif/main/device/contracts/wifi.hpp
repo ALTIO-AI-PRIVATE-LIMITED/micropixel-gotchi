@@ -67,6 +67,20 @@ enum class WifiError : uint8_t {
     kOperationFailed,
 };
 
+// Addresses of the live links, IPv4 in network byte order (0 when down).
+struct WifiLinkInfo final {
+    std::array<char, kWifiSsidCapacity + 1U> station_ssid{};
+    std::array<uint8_t, 6U> mac{};
+    uint32_t station_address{};
+    uint32_t access_point_address{};
+    uint8_t access_point_stations{};
+    uint8_t channel{};
+    int8_t rssi{};
+    bool station_connected{};
+    bool station_connecting{};
+    bool access_point_active{};
+};
+
 // Invoked from the Wi-Fi event context after its snapshot changes. The sink
 // must be non-blocking and must not call back into Wifi.
 using WifiStateChangeSink = void (*)(void* context);
@@ -90,6 +104,23 @@ class Wifi {
     [[nodiscard]] virtual std::expected<void, WifiError> Connect(std::string_view ssid, std::string_view password) = 0;
     [[nodiscard]] virtual std::expected<void, WifiError> Disconnect() = 0;
     [[nodiscard]] virtual std::expected<void, WifiError> Forget(std::string_view ssid) = 0;
+
+    // Guest hotspot (Network service). While it runs the station link keeps an
+    // existing association but makes no new connection attempts or scans,
+    // which would move the radio off the hotspot's channel.
+    [[nodiscard]] virtual std::expected<void, WifiError> StartAccessPoint(std::string_view ssid,
+                                                                          std::string_view password, uint8_t channel,
+                                                                          uint8_t max_stations) {
+        (void)ssid;
+        (void)password;
+        (void)channel;
+        (void)max_stations;
+        return std::unexpected(WifiError::kUnavailable);
+    }
+    [[nodiscard]] virtual std::expected<void, WifiError> StopAccessPoint() {
+        return std::unexpected(WifiError::kUnavailable);
+    }
+    [[nodiscard]] virtual WifiLinkInfo LinkInfo() const { return {}; }
 
    protected:
     Wifi() = default;

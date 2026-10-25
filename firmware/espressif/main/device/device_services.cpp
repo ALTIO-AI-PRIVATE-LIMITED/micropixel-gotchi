@@ -150,6 +150,30 @@ DeviceResult<void> HidKeyboardService::Consumer(uint16_t usage, bool pressed) co
     return StatusResult(implementation_.Consumer(usage, pressed));
 }
 
+DeviceResult<void> HidKeyboardService::Mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8_t pan) const {
+    return StatusResult(implementation_.Mouse(buttons, dx, dy, wheel, pan));
+}
+
+DeviceResult<void> HidKeyboardService::ForgetBonds() const { return StatusResult(implementation_.ForgetBonds()); }
+
+DeviceResult<void> BleLinkService::Start(const BleLinkCallbacks& callbacks) const {
+    return StatusResult(implementation_.Start(callbacks));
+}
+
+DeviceResult<void> BleLinkService::Stop() const { return StatusResult(implementation_.Stop()); }
+
+DeviceResult<void> BleLinkService::Queue(uint8_t channel, const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.Queue(channel, data, length));
+}
+
+DeviceResult<void> BleLinkService::SendBulk(const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.SendBulk(data, length));
+}
+
+DeviceResult<void> BleLinkService::SetValue(const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.SetValue(data, length));
+}
+
 DeviceResult<void> MicrophoneService::Start(MicrophoneSampleSink sink, void* context, uint8_t gain_db) const {
     return StatusResult(implementation_.Start(sink, context, gain_db));
 }

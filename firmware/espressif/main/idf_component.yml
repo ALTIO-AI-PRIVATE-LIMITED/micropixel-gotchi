@@ -52,6 +52,11 @@ dependencies:
     version: "^4.2.0"
   espressif/cjson:
     version: "^1.7.19"
+  # DNS-SD adverts for Guests (Network service ADVERTISE).
+  espressif/mdns:
+    version: "^1.8.2"
+    rules:
+      - if: "target == esp32s3"
   espressif/esp_mmap_assets:
     version: "2.0.0"
   espressif/esp_tinyusb:

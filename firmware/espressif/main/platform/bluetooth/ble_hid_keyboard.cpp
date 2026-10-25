@@ -26,6 +26,7 @@ constexpr char kTag[] = "micropixel_ble_hid";
 constexpr uint8_t kKeyboardReportId = 1U;
 constexpr uint8_t kAppleFnReportId = 2U;
 constexpr uint8_t kConsumerReportId = 3U;
+constexpr uint8_t kMouseReportId = 4U;
 constexpr uint8_t kFirstModifier = 0xE0U;  // Left Control.
 constexpr uint8_t kLastModifier = 0xE7U;   // Right GUI.
 constexpr uint8_t kHighestUsage = 0x73U;   // F24, the descriptor's usage maximum.
@@ -92,6 +93,41 @@ constexpr uint8_t kReportMap[] = {
     0x95, 0x01,               //   Report Count (1)
     0x81, 0x00,               //   Input (Data, Array, Absolute)
     0xC0,                     // End Collection
+    0x05, 0x01,               // Usage Page (Generic Desktop)
+    0x09, 0x02,               // Usage (Mouse)
+    0xA1, 0x01,               // Collection (Application)
+    0x85, kMouseReportId,     //   Report ID
+    0x09, 0x01,               //   Usage (Pointer)
+    0xA1, 0x00,               //   Collection (Physical)
+    0x05, 0x09,               //     Usage Page (Button)
+    0x19, 0x01,               //     Usage Minimum (1)
+    0x29, 0x03,               //     Usage Maximum (3)
+    0x15, 0x00,               //     Logical Minimum (0)
+    0x25, 0x01,               //     Logical Maximum (1)
+    0x95, 0x03,               //     Report Count (3)
+    0x75, 0x01,               //     Report Size (1)
+    0x81, 0x02,               //     Input (Data, Variable, Absolute)
+    0x95, 0x01,               //     Report Count (1)
+    0x75, 0x05,               //     Report Size (5)
+    0x81, 0x03,               //     Input (Constant)
+    0x05, 0x01,               //     Usage Page (Generic Desktop)
+    0x09, 0x30,               //     Usage (X)
+    0x09, 0x31,               //     Usage (Y)
+    0x09, 0x38,               //     Usage (Wheel)
+    0x15, 0x81,               //     Logical Minimum (-127)
+    0x25, 0x7F,               //     Logical Maximum (127)
+    0x75, 0x08,               //     Report Size (8)
+    0x95, 0x03,               //     Report Count (3)
+    0x81, 0x06,               //     Input (Data, Variable, Relative)
+    0x05, 0x0C,               //     Usage Page (Consumer)
+    0x0A, 0x38, 0x02,         //     Usage (AC Pan)
+    0x15, 0x81,               //     Logical Minimum (-127)
+    0x25, 0x7F,               //     Logical Maximum (127)
+    0x75, 0x08,               //     Report Size (8)
+    0x95, 0x01,               //     Report Count (1)
+    0x81, 0x06,               //     Input (Data, Variable, Relative)
+    0xC0,                     //   End Collection
+    0xC0,                     // End Collection
 };
 // clang-format on
 
@@ -128,6 +164,9 @@ int GapEvent(ble_gap_event* event, void*) {
         case BLE_GAP_EVENT_CONNECT:
             ESP_LOGI(kTag, "link %s: status=%d", event->connect.status == 0 ? "up" : "failed", event->connect.status);
             if (event->connect.status == 0) {
+                if (active_keyboard != nullptr) {
+                    active_keyboard->OnLink(event->connect.conn_handle);
+                }
                 // macOS only hands an LE keyboard to its HID driver once the
                 // link is bonded, and it does not always start pairing itself.
                 const int security = ble_gap_security_initiate(event->connect.conn_handle);
@@ -255,6 +294,10 @@ int32_t BleHidKeyboard::Start() {
     if (ble_gatts_count_cfg(pairing_services) != 0 || ble_gatts_add_svcs(pairing_services) != 0) {
         ESP_LOGW(kTag, "pairing service unavailable");
     }
+    if (link_ != nullptr && !link_->RegisterServices()) {
+        ESP_LOGW(kTag, "BLE Link service unavailable");
+        link_ = nullptr;
+    }
     ble_store_config_init();
     nimble_port_freertos_init(HostTask);
     flags_.fetch_or(MICROPIXEL_HID_KEYBOARD_STATE_STARTED, std::memory_order_release);
@@ -323,6 +366,45 @@ int32_t BleHidKeyboard::Consumer(uint16_t usage, bool pressed) {
     return MICROPIXEL_STATUS_OK;
 }
 
+int32_t BleHidKeyboard::Mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8_t pan) {
+    if ((buttons & ~0x07U) != 0U) {
+        return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+    }
+    auto* device = static_cast<esp_hidd_dev_t*>(hid_device_);
+    if ((flags_.load(std::memory_order_acquire) & MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED) == 0U || device == nullptr) {
+        return MICROPIXEL_STATUS_CLOSED;
+    }
+    uint8_t report[5] = {buttons, static_cast<uint8_t>(dx), static_cast<uint8_t>(dy), static_cast<uint8_t>(wheel),
+                         static_cast<uint8_t>(pan)};
+    const esp_err_t error = esp_hidd_dev_input_set(device, 0U, kMouseReportId, report, sizeof(report));
+    if (error != ESP_OK) {
+        ESP_LOGW(kTag, "mouse report failed: %s", esp_err_to_name(error));
+        return MICROPIXEL_STATUS_INTERNAL;
+    }
+    return MICROPIXEL_STATUS_OK;
+}
+
+int32_t BleHidKeyboard::ForgetBonds() {
+    if ((flags_.load(std::memory_order_acquire) & MICROPIXEL_HID_KEYBOARD_STATE_STARTED) == 0U) {
+        return MICROPIXEL_STATUS_CLOSED;
+    }
+    const int status = ble_store_clear();
+    if (status != 0) {
+        ESP_LOGW(kTag, "bond erase failed: %d", status);
+        return MICROPIXEL_STATUS_INTERNAL;
+    }
+    const uint16_t connection = connection_.load();
+    // Disconnecting re-arms advertising; with no link, advertise now.
+    if (connection == BLE_HS_CONN_HANDLE_NONE ||
+        ble_gap_terminate(connection, BLE_ERR_REM_USER_CONN_TERM) != 0) {
+        Advertise();
+    }
+    ESP_LOGI(kTag, "bonds erased");
+    return MICROPIXEL_STATUS_OK;
+}
+
+void BleHidKeyboard::OnLink(uint16_t connection) { connection_ = connection; }
+
 void BleHidKeyboard::OnHidStarted() { Advertise(); }
 
 void BleHidKeyboard::OnConnected(void* device) {
@@ -333,6 +415,7 @@ void BleHidKeyboard::OnConnected(void* device) {
 }
 
 void BleHidKeyboard::OnDisconnected() {
+    connection_ = BLE_HS_CONN_HANDLE_NONE;
     flags_.fetch_and(~static_cast<uint32_t>(MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED), std::memory_order_acq_rel);
     ESP_LOGI(kTag, "disconnected; advertising again");
     Advertise();
@@ -362,6 +445,21 @@ void BleHidKeyboard::Advertise() {
         ESP_LOGE(kTag, "advertising data rejected: %d", status);
         return;
     }
+    if (link_ != nullptr) {
+        // The BLE Link service UUID (6e400001-a9e8-4b1b-9c39-6d6f8a3c0000)
+        // does not fit beside the name; phone apps scanning for it find it in
+        // the scan response.
+        static ble_uuid128_t link_uuid = BLE_UUID128_INIT(0x00, 0x00, 0x3c, 0x8a, 0x6f, 0x6d, 0x39, 0x9c, 0x1b, 0x4b,
+                                                          0xe8, 0xa9, 0x01, 0x00, 0x40, 0x6e);
+        ble_hs_adv_fields response{};
+        response.uuids128 = &link_uuid;
+        response.num_uuids128 = 1U;
+        response.uuids128_is_complete = 0U;
+        status = ble_gap_adv_rsp_set_fields(&response);
+        if (status != 0) {
+            ESP_LOGW(kTag, "scan response rejected: %d", status);
+        }
+    }
     ble_gap_adv_params params{};
     params.conn_mode = BLE_GAP_CONN_MODE_UND;
     params.disc_mode = BLE_GAP_DISC_MODE_GEN;
@@ -386,6 +484,9 @@ uint32_t BleHidKeyboard::StateFlags() const { return 0U; }
 int32_t BleHidKeyboard::Start() { return MICROPIXEL_STATUS_UNSUPPORTED; }
 int32_t BleHidKeyboard::Key(uint8_t, bool, uint32_t) { return MICROPIXEL_STATUS_UNSUPPORTED; }
 int32_t BleHidKeyboard::Consumer(uint16_t, bool) { return MICROPIXEL_STATUS_UNSUPPORTED; }
+int32_t BleHidKeyboard::Mouse(uint8_t, int8_t, int8_t, int8_t, int8_t) { return MICROPIXEL_STATUS_UNSUPPORTED; }
+int32_t BleHidKeyboard::ForgetBonds() { return MICROPIXEL_STATUS_UNSUPPORTED; }
+void BleHidKeyboard::OnLink(uint16_t) {}
 void BleHidKeyboard::OnHidStarted() {}
 void BleHidKeyboard::OnConnected(void*) {}
 void BleHidKeyboard::OnDisconnected() {}

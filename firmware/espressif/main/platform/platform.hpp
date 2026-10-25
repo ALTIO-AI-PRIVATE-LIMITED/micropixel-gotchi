@@ -10,6 +10,7 @@
 #include "device/contracts/board_info.hpp"
 #include "device/contracts/cellular.hpp"
 #include "device/contracts/graphics.hpp"
+#include "device/contracts/ble_link.hpp"
 #include "device/contracts/hid_keyboard.hpp"
 #include "device/contracts/input.hpp"
 #include "device/contracts/local_control.hpp"
@@ -53,6 +54,7 @@ struct PlatformServices final {
     device::HidKeyboard* hid_keyboard{};
     device::Microphone* microphone{};
     device::PeerRadio* peer_radio{};
+    device::BleLink* ble_link{};
     // Optional dedicated App store medium (NAND, card). Null when the board
     // installs every Bundle into the NOR app_store partition.
     device::BlockStorage* app_storage{};
@@ -88,6 +90,7 @@ class BoardRegistration final {
     void SetHidKeyboard(device::HidKeyboard& hid_keyboard) { hid_keyboard_ = &hid_keyboard; }
     void SetMicrophone(device::Microphone& microphone) { microphone_ = &microphone; }
     void SetPeerRadio(device::PeerRadio& peer_radio) { peer_radio_ = &peer_radio; }
+    void SetBleLink(device::BleLink& ble_link) { ble_link_ = &ble_link; }
     void SetAppStorage(device::BlockStorage& storage, uint32_t bundle_block_size = 0U, bool removable = false) {
         app_storage_ = &storage;
         app_storage_block_size_ = bundle_block_size;
@@ -125,6 +128,7 @@ class BoardRegistration final {
     device::HidKeyboard* hid_keyboard_{};
     device::Microphone* microphone_{};
     device::PeerRadio* peer_radio_{};
+    device::BleLink* ble_link_{};
     device::BlockStorage* app_storage_{};
     uint32_t app_storage_block_size_{};
     bool app_storage_removable_{};

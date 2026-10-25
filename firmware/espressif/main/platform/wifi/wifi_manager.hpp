@@ -40,6 +40,11 @@ class WifiManager final : public device::Wifi {
                                                                  std::string_view password) override;
     [[nodiscard]] std::expected<void, device::WifiError> Disconnect() override;
     [[nodiscard]] std::expected<void, device::WifiError> Forget(std::string_view ssid) override;
+    [[nodiscard]] std::expected<void, device::WifiError> StartAccessPoint(std::string_view ssid,
+                                                                          std::string_view password, uint8_t channel,
+                                                                          uint8_t max_stations) override;
+    [[nodiscard]] std::expected<void, device::WifiError> StopAccessPoint() override;
+    [[nodiscard]] device::WifiLinkInfo LinkInfo() const override;
 
    private:
     struct HeapCapsDeleter final {
@@ -121,6 +126,7 @@ class WifiManager final : public device::Wifi {
     work::BackgroundExecutor* background_executor_{};
     esp_timer_handle_t discovery_timer_{};
     esp_netif_t* station_netif_{};
+    esp_netif_t* access_point_netif_{};
     esp_event_handler_instance_t wifi_event_instance_{};
     esp_event_handler_instance_t ip_event_instance_{};
     std::unique_ptr<std::byte, HeapCapsDeleter> scan_record_workspace_{};
@@ -149,6 +155,9 @@ class WifiManager final : public device::Wifi {
     bool user_scan_after_discovery_{};
     bool discovery_connection_pending_{};
     bool connection_full_channel_scan_{};
+    // A Guest hotspot is up: no station scans or connection attempts.
+    bool access_point_active_{};
+    bool access_point_started_driver_{};
     ScanPurpose scan_purpose_{ScanPurpose::kNone};
     device::WifiStateChangeSink state_change_sink_{};
     void* state_change_context_{};

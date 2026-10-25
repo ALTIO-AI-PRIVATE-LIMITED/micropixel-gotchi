@@ -101,6 +101,24 @@ UnavailablePeerRadio& MissingPeerRadio() {
     return value;
 }
 
+class UnavailableBleLink final : public device::BleLink {
+   public:
+    [[nodiscard]] micropixel_ble_link_state_t State() const override {
+        micropixel_ble_link_state_t state{};
+        state.size = sizeof(state);
+        return state;
+    }
+    [[nodiscard]] int32_t Start(const device::BleLinkCallbacks&) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
+    [[nodiscard]] int32_t Stop() override { return MICROPIXEL_STATUS_OK; }
+    [[nodiscard]] int32_t Queue(uint8_t, const uint8_t*, uint32_t) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
+    [[nodiscard]] int32_t SendBulk(const uint8_t*, uint32_t) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
+    [[nodiscard]] int32_t SetValue(const uint8_t*, uint32_t) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
+};
+UnavailableBleLink& MissingBleLink() {
+    static UnavailableBleLink value;
+    return value;
+}
+
 defaults::UnavailableGraphics& MissingGraphics() {
     static defaults::UnavailableGraphics value;
     return value;
@@ -139,7 +157,7 @@ bool PlatformServices::Complete() const {
     return graphics != nullptr && input != nullptr && audio != nullptr && battery != nullptr && random != nullptr &&
            wifi != nullptr && cellular != nullptr && power != nullptr && local_control != nullptr &&
            devices != nullptr && sensors != nullptr && gpio != nullptr && haptics != nullptr &&
-           hid_keyboard != nullptr && microphone != nullptr && peer_radio != nullptr &&
+           hid_keyboard != nullptr && microphone != nullptr && peer_radio != nullptr && ble_link != nullptr &&
            board_info.board != nullptr && system_ui != nullptr;
 }
 
@@ -255,6 +273,7 @@ bool Platform::Publish(const BoardRegistration& registration) {
         .hid_keyboard = registration.hid_keyboard_ != nullptr ? registration.hid_keyboard_ : &MissingHidKeyboard(),
         .microphone = registration.microphone_ != nullptr ? registration.microphone_ : &MissingMicrophone(),
         .peer_radio = registration.peer_radio_ != nullptr ? registration.peer_radio_ : &MissingPeerRadio(),
+        .ble_link = registration.ble_link_ != nullptr ? registration.ble_link_ : &MissingBleLink(),
         .app_storage = registration.app_storage_,
         .app_storage_block_size = registration.app_storage_block_size_,
         .app_storage_removable = registration.app_storage_removable_,

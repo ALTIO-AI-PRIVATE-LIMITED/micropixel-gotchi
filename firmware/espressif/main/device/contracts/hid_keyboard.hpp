@@ -23,6 +23,17 @@ class HidKeyboard {
     [[nodiscard]] virtual int32_t Key(uint8_t usage, bool pressed, uint32_t flags) = 0;
     // `usage` is a HID Consumer page usage such as Volume Increment (0xE9).
     [[nodiscard]] virtual int32_t Consumer(uint16_t usage, bool pressed) = 0;
+    // One relative mouse report; `buttons` are MICROPIXEL_HID_KEYBOARD_MOUSE_* bits.
+    [[nodiscard]] virtual int32_t Mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8_t pan) {
+        (void)buttons;
+        (void)dx;
+        (void)dy;
+        (void)wheel;
+        (void)pan;
+        return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
+    // Erases every bond, drops the link and advertises again.
+    [[nodiscard]] virtual int32_t ForgetBonds() { return MICROPIXEL_STATUS_UNSUPPORTED; }
 
    protected:
     HidKeyboard() = default;

@@ -283,6 +283,9 @@ class CheekoGotchiBoard final : public Board {
         registration.SetLocalControl(state_.local_control);
         registration.SetSystemUi(system_ui_);
         registration.SetHidKeyboard(hid_keyboard_);
+        // The BLE Link GATT service rides on the keyboard's host and connection.
+        hid_keyboard_.AttachLink(ble_link_);
+        registration.SetBleLink(ble_link_);
         if (microphone_status == ESP_OK) {
             registration.SetMicrophone(microphone_);
         }
@@ -376,7 +379,9 @@ class CheekoGotchiBoard final : public Board {
     wifi::WifiManager wifi_{wifi_radio_};
     // ESP-NOW link to a second Gotchi (walkie-talkie); idle until an App starts it.
     wifi::EspNowPeerRadio peer_radio_{wifi_};
-    // Shared by the WisprKey and Chat Remote Apps; started at boot.
+    // App GATT link served next to the keyboard (iPhone Agent).
+    bluetooth::BleAppLink ble_link_{};
+    // Shared by the WisprKey, Chat Remote and iPhone Agent Apps; started at boot.
     bluetooth::BleHidKeyboard hid_keyboard_{"CGotchi"};
 };
 

@@ -26,10 +26,12 @@ list(APPEND micropixel_sources
     "runtime/resources/resource_service.cpp"
     "runtime/services/storage_service.cpp"
     "runtime/services/app_storage.cpp"
+    "runtime/services/ble_link_service.cpp"
     "runtime/services/direct_surface_service.cpp"
     "runtime/services/gpio_service.cpp"
     "runtime/services/haptics_service.cpp"
     "runtime/services/microphone_service.cpp"
+    "runtime/services/network_service.cpp"
     "runtime/services/peer_radio_service.cpp"
     "runtime/services/raster_service.cpp"
     "runtime/services/sensor_service.cpp"
@@ -41,5 +43,5 @@ list(APPEND micropixel_sources
 )
 list(APPEND micropixel_requires
     esp_new_jpeg esp_partition esp_psram esp_timer esphome__micro-opus espressif__libpng
-    heap mbedtls nvs_flash spi_flash wasm-micro-runtime
+    heap lwip mbedtls nvs_flash spi_flash wasm-micro-runtime
 )

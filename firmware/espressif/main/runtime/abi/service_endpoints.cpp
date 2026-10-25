@@ -349,7 +349,198 @@ int32_t HidKeyboardServiceEndpoint::Call(uint32_t method_id, const uint8_t* requ
         }
         return ResultStatus(context_.HidKeyboardConsumer(wire.usage, wire.pressed != 0U));
     }
+    if (method_id == MICROPIXEL_HID_KEYBOARD_METHOD_MOUSE) {
+        micropixel_hid_keyboard_mouse_request_t wire{};
+        if (!ReadRequest(request, request_size, wire) || (wire.buttons & ~0x07U) != 0U) {
+            return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        }
+        return ResultStatus(context_.HidKeyboardMouse(wire.buttons, wire.dx, wire.dy, wire.wheel, wire.pan));
+    }
+    if (method_id == MICROPIXEL_HID_KEYBOARD_METHOD_FORGET_BONDS) {
+        return EmptyRequest(request_size) ? ResultStatus(context_.HidKeyboardForgetBonds())
+                                          : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+    }
     return MICROPIXEL_STATUS_UNSUPPORTED;
+}
+
+ServiceDescriptor BleLinkServiceEndpoint::Describe() const {
+    return ServiceDescriptor{
+        .service_id = MICROPIXEL_SERVICE_BLE_LINK,
+        .interface_major = MICROPIXEL_BLE_LINK_INTERFACE_MAJOR,
+        .interface_minor = MICROPIXEL_BLE_LINK_INTERFACE_MINOR,
+        .flags = MICROPIXEL_SERVICE_FLAG_CALL | MICROPIXEL_SERVICE_FLAG_EVENTS,
+        .max_request_bytes = sizeof(micropixel_ble_link_notify_request_t) + MICROPIXEL_BLE_LINK_MAX_MESSAGE,
+        .max_response_bytes = sizeof(micropixel_ble_link_read_response_t) + MICROPIXEL_BLE_LINK_MAX_MESSAGE,
+    };
+}
+
+int32_t BleLinkServiceEndpoint::Call(uint32_t method_id, const uint8_t* request, uint32_t request_size,
+                                     uint8_t* response, uint32_t response_capacity, uint32_t& response_size_out) {
+    switch (method_id) {
+        case MICROPIXEL_BLE_LINK_METHOD_GET_STATE:
+            return EmptyRequest(request_size)
+                       ? WriteValue(context_.BleLinkState(), response, response_capacity, response_size_out)
+                       : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        case MICROPIXEL_BLE_LINK_METHOD_START:
+            return EmptyRequest(request_size) ? ResultStatus(context_.BleLinkStart())
+                                              : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        case MICROPIXEL_BLE_LINK_METHOD_STOP:
+            return EmptyRequest(request_size) ? ResultStatus(context_.BleLinkStop())
+                                              : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        case MICROPIXEL_BLE_LINK_METHOD_READ: {
+            using Header = micropixel_ble_link_read_response_t;
+            if (!EmptyRequest(request_size)) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            if (response == nullptr || response_capacity < sizeof(Header) + MICROPIXEL_BLE_LINK_MAX_MESSAGE) {
+                response_size_out = sizeof(Header) + MICROPIXEL_BLE_LINK_MAX_MESSAGE;
+                return MICROPIXEL_STATUS_BUFFER_TOO_SMALL;
+            }
+            auto result = context_.BleLinkRead(response + sizeof(Header), MICROPIXEL_BLE_LINK_MAX_MESSAGE);
+            if (!result) {
+                return result.error().status;
+            }
+            std::memcpy(response, &*result, sizeof(Header));
+            response_size_out = sizeof(Header) + result->length;
+            return MICROPIXEL_STATUS_OK;
+        }
+        case MICROPIXEL_BLE_LINK_METHOD_NOTIFY: {
+            micropixel_ble_link_notify_request_t wire{};
+            if (!ReadVariableRequest(request, request_size, wire) || wire.size != sizeof(wire) || wire.length == 0U ||
+                wire.length > MICROPIXEL_BLE_LINK_MAX_MESSAGE || wire.channel > MICROPIXEL_BLE_LINK_CHANNEL_BULK ||
+                wire.reserved0 != 0U || wire.reserved1 != 0U || request_size != sizeof(wire) + wire.length) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            return ResultStatus(context_.BleLinkNotify(wire.channel, request + sizeof(wire), wire.length));
+        }
+        case MICROPIXEL_BLE_LINK_METHOD_SET_VALUE: {
+            micropixel_ble_link_value_request_t wire{};
+            if (!ReadVariableRequest(request, request_size, wire) || wire.size != sizeof(wire) ||
+                wire.length > MICROPIXEL_BLE_LINK_MAX_VALUE || request_size != sizeof(wire) + wire.length) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            return ResultStatus(context_.BleLinkSetValue(request + sizeof(wire), wire.length));
+        }
+        default:
+            return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
+}
+
+ServiceDescriptor NetworkServiceEndpoint::Describe() const {
+    return ServiceDescriptor{
+        .service_id = MICROPIXEL_SERVICE_NETWORK,
+        .interface_major = MICROPIXEL_NETWORK_INTERFACE_MAJOR,
+        .interface_minor = MICROPIXEL_NETWORK_INTERFACE_MINOR,
+        .flags = MICROPIXEL_SERVICE_FLAG_CALL | MICROPIXEL_SERVICE_FLAG_EVENTS,
+        .max_request_bytes = sizeof(micropixel_network_send_request_t) + MICROPIXEL_NETWORK_MAX_TRANSFER,
+        .max_response_bytes = sizeof(micropixel_network_receive_response_t) + MICROPIXEL_NETWORK_MAX_TRANSFER,
+    };
+}
+
+int32_t NetworkServiceEndpoint::Call(uint32_t method_id, const uint8_t* request, uint32_t request_size,
+                                     uint8_t* response, uint32_t response_capacity, uint32_t& response_size_out) {
+    switch (method_id) {
+        case MICROPIXEL_NETWORK_METHOD_GET_STATE:
+            return EmptyRequest(request_size)
+                       ? WriteValue(context_.NetworkState(), response, response_capacity, response_size_out)
+                       : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        case MICROPIXEL_NETWORK_METHOD_ACCESS_POINT_START: {
+            micropixel_network_access_point_request_t wire{};
+            if (!ReadRequest(request, request_size, wire) || wire.reserved1[0] != 0U || wire.reserved1[1] != 0U) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            return ResultStatus(context_.NetworkStartAccessPoint(wire));
+        }
+        case MICROPIXEL_NETWORK_METHOD_ACCESS_POINT_STOP:
+            return EmptyRequest(request_size) ? ResultStatus(context_.NetworkStopAccessPoint())
+                                              : MICROPIXEL_STATUS_INVALID_ARGUMENT;
+        case MICROPIXEL_NETWORK_METHOD_ADVERTISE: {
+            micropixel_network_advertise_request_t wire{};
+            if (!ReadVariableRequest(request, request_size, wire) || wire.size != sizeof(wire) ||
+                wire.reserved0 != 0U || wire.txt_length > MICROPIXEL_NETWORK_MAX_TXT ||
+                request_size != sizeof(wire) + wire.txt_length) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            auto result = context_.NetworkAdvertise(wire, request + sizeof(wire), wire.txt_length);
+            if (!result) {
+                return result.error().status;
+            }
+            micropixel_network_handle_message_t handle{};
+            handle.size = sizeof(handle);
+            handle.handle = *result;
+            return WriteValue(handle, response, response_capacity, response_size_out);
+        }
+        case MICROPIXEL_NETWORK_METHOD_WITHDRAW:
+        case MICROPIXEL_NETWORK_METHOD_CLOSE: {
+            micropixel_network_handle_message_t wire{};
+            if (!ReadRequest(request, request_size, wire) || wire.handle == 0U) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            return ResultStatus(method_id == MICROPIXEL_NETWORK_METHOD_WITHDRAW ? context_.NetworkWithdraw(wire.handle)
+                                                                                 : context_.NetworkClose(wire.handle));
+        }
+        case MICROPIXEL_NETWORK_METHOD_OPEN: {
+            micropixel_network_open_request_t wire{};
+            if (!ReadRequest(request, request_size, wire) || wire.reserved1 != 0U) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            auto result = context_.NetworkOpen(wire.kind, wire.port);
+            if (!result) {
+                return result.error().status;
+            }
+            micropixel_network_handle_message_t handle{};
+            handle.size = sizeof(handle);
+            handle.handle = *result;
+            return WriteValue(handle, response, response_capacity, response_size_out);
+        }
+        case MICROPIXEL_NETWORK_METHOD_ACCEPT: {
+            micropixel_network_handle_message_t wire{};
+            if (!ReadRequest(request, request_size, wire) || wire.handle == 0U) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            return WriteResult<micropixel_network_accept_response_t>(context_.NetworkAccept(wire.handle), response,
+                                                                     response_capacity, response_size_out);
+        }
+        case MICROPIXEL_NETWORK_METHOD_RECEIVE: {
+            using Header = micropixel_network_receive_response_t;
+            micropixel_network_receive_request_t wire{};
+            if (!ReadRequest(request, request_size, wire) || wire.handle == 0U || wire.max_length == 0U ||
+                wire.max_length > MICROPIXEL_NETWORK_MAX_TRANSFER) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            if (response == nullptr || response_capacity < sizeof(Header) + 1U) {
+                response_size_out = sizeof(Header) + wire.max_length;
+                return MICROPIXEL_STATUS_BUFFER_TOO_SMALL;
+            }
+            const uint32_t capacity =
+                std::min<uint32_t>(wire.max_length, response_capacity - static_cast<uint32_t>(sizeof(Header)));
+            auto result = context_.NetworkReceive(wire.handle, response + sizeof(Header), capacity);
+            if (!result) {
+                return result.error().status;
+            }
+            std::memcpy(response, &*result, sizeof(Header));
+            response_size_out = sizeof(Header) + result->length;
+            return MICROPIXEL_STATUS_OK;
+        }
+        case MICROPIXEL_NETWORK_METHOD_SEND: {
+            micropixel_network_send_request_t wire{};
+            if (!ReadVariableRequest(request, request_size, wire) || wire.size != sizeof(wire) || wire.handle == 0U ||
+                wire.length == 0U || wire.length > MICROPIXEL_NETWORK_MAX_TRANSFER ||
+                request_size != sizeof(wire) + wire.length) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            auto result = context_.NetworkSend(wire, request + sizeof(wire));
+            if (!result) {
+                return result.error().status;
+            }
+            micropixel_network_send_response_t sent{};
+            sent.size = sizeof(sent);
+            sent.sent = *result;
+            return WriteValue(sent, response, response_capacity, response_size_out);
+        }
+        default:
+            return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
 }
 
 ServiceDescriptor MicrophoneServiceEndpoint::Describe() const {

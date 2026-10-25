@@ -53,7 +53,7 @@
 #define MICROPIXEL_POWER_INTERFACE_MAJOR 1U
 #define MICROPIXEL_POWER_INTERFACE_MINOR 0U
 #define MICROPIXEL_HID_KEYBOARD_INTERFACE_MAJOR 1U
-#define MICROPIXEL_HID_KEYBOARD_INTERFACE_MINOR 0U
+#define MICROPIXEL_HID_KEYBOARD_INTERFACE_MINOR 1U
 #define MICROPIXEL_MICROPHONE_INTERFACE_MAJOR 1U
 #define MICROPIXEL_MICROPHONE_INTERFACE_MINOR 0U
 /* Most mono int16 samples one Microphone READ returns. */
@@ -62,6 +62,18 @@
 #define MICROPIXEL_PEER_RADIO_INTERFACE_MINOR 0U
 /* Largest Guest payload in one Peer Radio packet. */
 #define MICROPIXEL_PEER_RADIO_MAX_PAYLOAD 240U
+#define MICROPIXEL_BLE_LINK_INTERFACE_MAJOR 1U
+#define MICROPIXEL_BLE_LINK_INTERFACE_MINOR 0U
+/* Largest message one BLE Link write or notification carries (ATT MTU 517 - 3). */
+#define MICROPIXEL_BLE_LINK_MAX_MESSAGE 514U
+/* Largest value the BLE Link VALUE characteristic returns. */
+#define MICROPIXEL_BLE_LINK_MAX_VALUE 256U
+#define MICROPIXEL_NETWORK_INTERFACE_MAJOR 1U
+#define MICROPIXEL_NETWORK_INTERFACE_MINOR 0U
+/* Most bytes one Network SEND or RECEIVE moves. */
+#define MICROPIXEL_NETWORK_MAX_TRANSFER 8192U
+/* Largest DNS-SD TXT record (length-prefixed "key=value" strings) one ADVERTISE carries. */
+#define MICROPIXEL_NETWORK_MAX_TXT 512U
 #define MICROPIXEL_DEVICES_LIST_PAGE_SIZE 16U
 #define MICROPIXEL_DEVICE_NAME_MAX_BYTES 39U
 
@@ -118,6 +130,7 @@ typedef enum micropixel_service_id {
     MICROPIXEL_SERVICE_HID_KEYBOARD = 24,
     MICROPIXEL_SERVICE_MICROPHONE = 25,
     MICROPIXEL_SERVICE_PEER_RADIO = 26,
+    MICROPIXEL_SERVICE_BLE_LINK = 27,
 } micropixel_service_id_t;
 
 typedef enum micropixel_service_flag {
@@ -571,12 +584,17 @@ typedef struct micropixel_power_info {
  * restarts, so a computer reconnects on its own. KEY sends one HID Keyboard
  * page usage press or release (0x01..0x73, or a modifier 0xE0..0xE7);
  * APPLE_FN mirrors it on the vendor Fn report. CONSUMER sends one Consumer
- * page usage (volume, media) press or release. */
+ * page usage (volume, media) press or release. Interface 1.1 adds a relative
+ * mouse on the same link: MOUSE sends one report (an iPhone with
+ * AssistiveTouch shows it as a pointer). FORGET_BONDS erases every bond,
+ * drops the link and advertises again. */
 typedef enum micropixel_hid_keyboard_method {
     MICROPIXEL_HID_KEYBOARD_METHOD_GET_STATE = 1,
     MICROPIXEL_HID_KEYBOARD_METHOD_START = 2,
     MICROPIXEL_HID_KEYBOARD_METHOD_KEY = 3,
     MICROPIXEL_HID_KEYBOARD_METHOD_CONSUMER = 4,
+    MICROPIXEL_HID_KEYBOARD_METHOD_MOUSE = 5,
+    MICROPIXEL_HID_KEYBOARD_METHOD_FORGET_BONDS = 6,
 } micropixel_hid_keyboard_method_t;
 
 typedef enum micropixel_hid_keyboard_state_flag {
@@ -585,6 +603,24 @@ typedef enum micropixel_hid_keyboard_state_flag {
     MICROPIXEL_HID_KEYBOARD_STATE_ADVERTISING = 1U << 2U,
     MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED = 1U << 3U,
 } micropixel_hid_keyboard_state_flag_t;
+
+typedef enum micropixel_hid_keyboard_mouse_button {
+    MICROPIXEL_HID_KEYBOARD_MOUSE_LEFT = 1U << 0U,
+    MICROPIXEL_HID_KEYBOARD_MOUSE_RIGHT = 1U << 1U,
+    MICROPIXEL_HID_KEYBOARD_MOUSE_MIDDLE = 1U << 2U,
+} micropixel_hid_keyboard_mouse_button_t;
+
+/* Buttons held after this report, pointer motion, vertical wheel and
+ * horizontal pan, all relative. */
+typedef struct micropixel_hid_keyboard_mouse_request {
+    uint16_t size;
+    uint8_t buttons;
+    int8_t dx;
+    int8_t dy;
+    int8_t wheel;
+    int8_t pan;
+    uint8_t reserved0;
+} micropixel_hid_keyboard_mouse_request_t;
 
 typedef enum micropixel_hid_keyboard_key_flag {
     MICROPIXEL_HID_KEYBOARD_KEY_APPLE_FN = 1U << 0U,
@@ -764,6 +800,252 @@ typedef struct micropixel_peer_radio_candidate_event_payload {
     int8_t rssi;
     uint8_t reserved0[7];
 } micropixel_peer_radio_candidate_event_payload_t;
+
+/* An App's own GATT service on the Host keyboard's LE connection, for a
+ * companion phone or computer app. The Host serves it from boot (service
+ * 6e400001-a9e8-4b1b-9c39-6d6f8a3c0000; characteristic UUIDs end in 0001..0005):
+ *   0001 INBOX   write / write without response: each write is one message.
+ *   0002..0004   notify: channels 0 (REPLY), 1 (STATUS, also readable) and 2 (BULK).
+ *   0005 VALUE   read / write, encrypted link only: reads return what SET_VALUE
+ *                stored; writes become messages like INBOX writes.
+ * START binds the link to the App until STOP or session end; messages queue in
+ * the Host and INBOX fires when one arrives and the Guest has not READ since
+ * the last event. NOTIFY on REPLY and STATUS queues the message (sent before
+ * any further BULK data); NOTIFY on BULK sends at once or fails with
+ * RATE_LIMITED while the controller is busy, and ROOM then fires once BULK
+ * can send again. STATE fires when the connection or subscriptions change. */
+typedef enum micropixel_ble_link_method {
+    MICROPIXEL_BLE_LINK_METHOD_GET_STATE = 1,
+    MICROPIXEL_BLE_LINK_METHOD_START = 2,
+    MICROPIXEL_BLE_LINK_METHOD_STOP = 3,
+    MICROPIXEL_BLE_LINK_METHOD_READ = 4,
+    MICROPIXEL_BLE_LINK_METHOD_NOTIFY = 5,
+    MICROPIXEL_BLE_LINK_METHOD_SET_VALUE = 6,
+} micropixel_ble_link_method_t;
+
+typedef enum micropixel_ble_link_event_id {
+    MICROPIXEL_BLE_LINK_EVENT_INBOX = 1,
+    MICROPIXEL_BLE_LINK_EVENT_STATE = 2,
+    MICROPIXEL_BLE_LINK_EVENT_ROOM = 3,
+} micropixel_ble_link_event_id_t;
+
+typedef enum micropixel_ble_link_channel {
+    MICROPIXEL_BLE_LINK_CHANNEL_REPLY = 0,
+    MICROPIXEL_BLE_LINK_CHANNEL_STATUS = 1,
+    MICROPIXEL_BLE_LINK_CHANNEL_BULK = 2,
+} micropixel_ble_link_channel_t;
+
+typedef enum micropixel_ble_link_state_flag {
+    MICROPIXEL_BLE_LINK_STATE_AVAILABLE = 1U << 0U,
+    MICROPIXEL_BLE_LINK_STATE_STARTED = 1U << 1U,
+    MICROPIXEL_BLE_LINK_STATE_CONNECTED = 1U << 2U,
+    MICROPIXEL_BLE_LINK_STATE_ENCRYPTED = 1U << 3U,
+    /* The peer subscribed to channel 0, 1 or 2. */
+    MICROPIXEL_BLE_LINK_STATE_SUBSCRIBED_REPLY = 1U << 4U,
+    MICROPIXEL_BLE_LINK_STATE_SUBSCRIBED_STATUS = 1U << 5U,
+    MICROPIXEL_BLE_LINK_STATE_SUBSCRIBED_BULK = 1U << 6U,
+} micropixel_ble_link_state_flag_t;
+
+typedef enum micropixel_ble_link_source {
+    MICROPIXEL_BLE_LINK_SOURCE_INBOX = 1,
+    MICROPIXEL_BLE_LINK_SOURCE_VALUE = 5,
+} micropixel_ble_link_source_t;
+
+typedef struct micropixel_ble_link_state {
+    uint16_t size;
+    uint16_t mtu;
+    uint32_t flags;
+    uint8_t phy;
+    uint8_t peers;
+    /* Payload bytes the next BULK notification may carry (MTU - 3). */
+    uint16_t bulk_payload;
+    /* BULK notifications that failed after being accepted. */
+    uint32_t bulk_drops;
+    /* REPLY and STATUS messages that never reached a subscribed peer. */
+    uint32_t reply_drops;
+    /* BULK bytes sent over the last second, in kbit/s. */
+    uint32_t bulk_kbps;
+} micropixel_ble_link_state_t;
+
+/* Followed by `length` bytes; `size` covers the header only. */
+typedef struct micropixel_ble_link_notify_request {
+    uint16_t size;
+    uint8_t channel;
+    uint8_t reserved0;
+    uint16_t length;
+    uint16_t reserved1;
+} micropixel_ble_link_notify_request_t;
+
+/* Followed by `length` bytes; `size` covers the header only. */
+typedef struct micropixel_ble_link_value_request {
+    uint16_t size;
+    uint16_t length;
+} micropixel_ble_link_value_request_t;
+
+/* Followed by `length` bytes (0 when nothing was pending); `size` covers the
+ * header only. */
+typedef struct micropixel_ble_link_read_response {
+    uint16_t size;
+    uint16_t length;
+    uint8_t source;
+    uint8_t reserved0;
+    uint16_t pending;
+    /* Messages dropped since the previous READ because the queue was full. */
+    uint32_t dropped;
+} micropixel_ble_link_read_response_t;
+
+typedef struct micropixel_ble_link_event_payload {
+    uint32_t flags;
+    uint32_t pending;
+    uint32_t reserved0[2];
+} micropixel_ble_link_event_payload_t;
+
+/* Wi-Fi and IPv4 sockets. The Host joins saved networks by itself; GET_STATE
+ * reports that link. ACCESS_POINT_START switches Wi-Fi to a WPA2 hotspot of the
+ * Guest's own (the station link pauses until ACCESS_POINT_STOP or session end).
+ * ADVERTISE publishes a DNS-SD service over mDNS on every active interface
+ * until WITHDRAW or session end. OPEN creates a TCP listener or a UDP socket
+ * bound to `port`; ACCEPT, RECEIVE and SEND never block (WOULD_BLOCK when
+ * nothing is ready) and READY fires once per socket when it becomes readable
+ * (a pending connection, data, or the peer closing) after the Guest last
+ * called ACCEPT or RECEIVE on it. RECEIVE returns length 0 with the CLOSED
+ * flag once a TCP peer has closed. Every socket closes at session end. */
+typedef enum micropixel_network_method {
+    MICROPIXEL_NETWORK_METHOD_GET_STATE = 1,
+    MICROPIXEL_NETWORK_METHOD_ACCESS_POINT_START = 2,
+    MICROPIXEL_NETWORK_METHOD_ACCESS_POINT_STOP = 3,
+    MICROPIXEL_NETWORK_METHOD_ADVERTISE = 4,
+    MICROPIXEL_NETWORK_METHOD_WITHDRAW = 5,
+    MICROPIXEL_NETWORK_METHOD_OPEN = 6,
+    MICROPIXEL_NETWORK_METHOD_ACCEPT = 7,
+    MICROPIXEL_NETWORK_METHOD_RECEIVE = 8,
+    MICROPIXEL_NETWORK_METHOD_SEND = 9,
+    MICROPIXEL_NETWORK_METHOD_CLOSE = 10,
+} micropixel_network_method_t;
+
+typedef enum micropixel_network_event_id {
+    MICROPIXEL_NETWORK_EVENT_READY = 1,
+    MICROPIXEL_NETWORK_EVENT_STATE = 2,
+} micropixel_network_event_id_t;
+
+typedef enum micropixel_network_state_flag {
+    MICROPIXEL_NETWORK_STATE_AVAILABLE = 1U << 0U,
+    MICROPIXEL_NETWORK_STATE_STATION_CONNECTED = 1U << 1U,
+    MICROPIXEL_NETWORK_STATE_ACCESS_POINT = 1U << 2U,
+    /* The Host is joining a saved network. */
+    MICROPIXEL_NETWORK_STATE_STATION_CONNECTING = 1U << 3U,
+} micropixel_network_state_flag_t;
+
+typedef enum micropixel_network_socket_kind {
+    MICROPIXEL_NETWORK_SOCKET_TCP_LISTEN = 1,
+    MICROPIXEL_NETWORK_SOCKET_UDP = 2,
+} micropixel_network_socket_kind_t;
+
+typedef enum micropixel_network_transfer_flag {
+    MICROPIXEL_NETWORK_TRANSFER_CLOSED = 1U << 0U,
+} micropixel_network_transfer_flag_t;
+
+/* Addresses are IPv4 in network byte order; ports in host byte order. */
+typedef struct micropixel_network_state {
+    uint16_t size;
+    uint8_t channel;
+    int8_t rssi;
+    uint32_t flags;
+    uint32_t station_address;
+    uint32_t access_point_address;
+    uint8_t access_point_stations;
+    uint8_t reserved0;
+    uint8_t mac[6];
+    char station_ssid[33];
+    uint8_t reserved1[3];
+} micropixel_network_state_t;
+
+/* WPA2-PSK; `password` 8..63 characters, NUL-terminated like `ssid`. */
+typedef struct micropixel_network_access_point_request {
+    uint16_t size;
+    uint8_t channel;
+    uint8_t max_stations;
+    char ssid[33];
+    char password[65];
+    uint8_t reserved1[2];
+} micropixel_network_access_point_request_t;
+
+/* Followed by `txt_length` TXT bytes; `size` covers the header only.
+ * `service` like "_airplay", `protocol` 0 = "_tcp", 1 = "_udp". */
+typedef struct micropixel_network_advertise_request {
+    uint16_t size;
+    uint16_t port;
+    uint8_t protocol;
+    uint8_t reserved0;
+    uint16_t txt_length;
+    char service[16];
+    char instance[64];
+} micropixel_network_advertise_request_t;
+
+typedef struct micropixel_network_handle_message {
+    uint16_t size;
+    uint16_t reserved0;
+    uint32_t handle;
+} micropixel_network_handle_message_t;
+
+typedef struct micropixel_network_open_request {
+    uint16_t size;
+    uint8_t kind;
+    uint8_t reserved0;
+    uint16_t port;
+    uint16_t reserved1;
+} micropixel_network_open_request_t;
+
+typedef struct micropixel_network_accept_response {
+    uint16_t size;
+    uint16_t remote_port;
+    uint32_t handle;
+    uint32_t remote_address;
+    uint32_t local_address;
+} micropixel_network_accept_response_t;
+
+typedef struct micropixel_network_receive_request {
+    uint16_t size;
+    uint16_t reserved0;
+    uint32_t handle;
+    uint32_t max_length;
+} micropixel_network_receive_request_t;
+
+/* Followed by `length` bytes; `size` covers the header only. UDP fills the
+ * sender's address. */
+typedef struct micropixel_network_receive_response {
+    uint16_t size;
+    uint16_t remote_port;
+    uint32_t length;
+    uint32_t remote_address;
+    uint32_t flags;
+} micropixel_network_receive_response_t;
+
+/* Followed by `length` bytes; `size` covers the header only. UDP sends to
+ * `remote_address:remote_port`; TCP ignores them. */
+typedef struct micropixel_network_send_request {
+    uint16_t size;
+    uint16_t remote_port;
+    uint32_t handle;
+    uint32_t length;
+    uint32_t remote_address;
+} micropixel_network_send_request_t;
+
+typedef struct micropixel_network_send_response {
+    uint16_t size;
+    uint16_t reserved0;
+    uint32_t sent;
+} micropixel_network_send_response_t;
+
+typedef struct micropixel_network_ready_event_payload {
+    uint32_t handle;
+    uint32_t reserved0[3];
+} micropixel_network_ready_event_payload_t;
+
+typedef struct micropixel_network_state_event_payload {
+    uint32_t flags;
+    uint32_t reserved0[3];
+} micropixel_network_state_event_payload_t;
 
 typedef enum micropixel_graphics_method {
     MICROPIXEL_GRAPHICS_METHOD_GET_INFO = 1,
@@ -1962,6 +2244,42 @@ MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_hid_keyboard_key_request_t) == 8U
                              "micropixel_hid_keyboard_key_request_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_hid_keyboard_consumer_request_t) == 8U,
                              "micropixel_hid_keyboard_consumer_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_hid_keyboard_mouse_request_t) == 8U,
+                             "micropixel_hid_keyboard_mouse_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_ble_link_state_t) == 24U,
+                             "micropixel_ble_link_state_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_ble_link_notify_request_t) == 8U,
+                             "micropixel_ble_link_notify_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_ble_link_value_request_t) == 4U,
+                             "micropixel_ble_link_value_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_ble_link_read_response_t) == 12U,
+                             "micropixel_ble_link_read_response_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_ble_link_event_payload_t) == 16U,
+                             "micropixel_ble_link_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_state_t) == 60U,
+                             "micropixel_network_state_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_access_point_request_t) == 104U,
+                             "micropixel_network_access_point_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_advertise_request_t) == 88U,
+                             "micropixel_network_advertise_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_handle_message_t) == 8U,
+                             "micropixel_network_handle_message_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_open_request_t) == 8U,
+                             "micropixel_network_open_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_accept_response_t) == 16U,
+                             "micropixel_network_accept_response_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_receive_request_t) == 12U,
+                             "micropixel_network_receive_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_receive_response_t) == 16U,
+                             "micropixel_network_receive_response_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_send_request_t) == 16U,
+                             "micropixel_network_send_request_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_send_response_t) == 8U,
+                             "micropixel_network_send_response_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_ready_event_payload_t) == 16U,
+                             "micropixel_network_ready_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_network_state_event_payload_t) == 16U,
+                             "micropixel_network_state_event_payload_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_info_t) == 16U,
                              "micropixel_microphone_info_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_start_request_t) == 8U,
