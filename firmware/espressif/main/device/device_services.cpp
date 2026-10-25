@@ -156,6 +156,17 @@ DeviceResult<void> MicrophoneService::Start(MicrophoneSampleSink sink, void* con
 
 DeviceResult<void> MicrophoneService::Stop() const { return StatusResult(implementation_.Stop()); }
 
+DeviceResult<void> RemoteVideoService::Start(RemoteVideoFrameSink sink, void* context) const {
+    return StatusResult(implementation_.Start(sink, context));
+}
+
+DeviceResult<void> RemoteVideoService::Stop() const { return StatusResult(implementation_.Stop()); }
+
+DeviceResult<void> RemoteVideoService::ReadFrame(uint16_t* pixels, uint16_t width, uint16_t height,
+                                                 bool byte_swapped) const {
+    return StatusResult(implementation_.ReadFrame(pixels, width, height, byte_swapped));
+}
+
 DeviceResult<void> PeerRadioService::Start(const PeerRadioCallbacks& callbacks) const {
     return StatusResult(implementation_.Start(callbacks));
 }

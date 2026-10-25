@@ -39,6 +39,8 @@ enum class EventType : uint16_t {
     kPeerPacket,
     kPeerState,
     kPeerCandidate,
+    // Remote Video 1.0: a newer frame is ready to ReadFrame().
+    kRemoteVideoFrame,
 };
 
 enum class TouchPhase : uint8_t {
@@ -341,6 +343,31 @@ class MicrophoneEvent final {
     friend class Event;
 };
 
+// Remote Video received a newer frame since the last ReadFrame().
+class RemoteVideoEvent final {
+   public:
+    [[nodiscard]] constexpr TimePoint timestamp() const { return timestamp_; }
+    [[nodiscard]] constexpr uint32_t frames_received() const { return frames_received_; }
+    [[nodiscard]] constexpr uint16_t frame_width() const { return frame_width_; }
+    [[nodiscard]] constexpr uint16_t frame_height() const { return frame_height_; }
+
+   private:
+    constexpr RemoteVideoEvent() = default;
+    constexpr RemoteVideoEvent(TimePoint timestamp, uint32_t frames_received, uint16_t frame_width,
+                               uint16_t frame_height)
+        : timestamp_(timestamp),
+          frames_received_(frames_received),
+          frame_width_(frame_width),
+          frame_height_(frame_height) {}
+
+    TimePoint timestamp_{};
+    uint32_t frames_received_{};
+    uint16_t frame_width_{};
+    uint16_t frame_height_{};
+    friend class Application;
+    friend class Event;
+};
+
 enum class PeerRadioEventKind : uint8_t {
     // Packets are queued; call PeerRadio::Receive() until it returns length 0.
     kPacket,
@@ -400,6 +427,9 @@ class Event final {
     [[nodiscard]] constexpr const AxisEvent* axis() const { return type_ == EventType::kAxis ? &axis_ : nullptr; }
     [[nodiscard]] constexpr const MicrophoneEvent* microphone() const {
         return type_ == EventType::kMicrophone ? &microphone_ : nullptr;
+    }
+    [[nodiscard]] constexpr const RemoteVideoEvent* remote_video() const {
+        return type_ == EventType::kRemoteVideoFrame ? &remote_video_ : nullptr;
     }
     [[nodiscard]] constexpr const PeerRadioEvent* peer_radio() const {
         return type_ == EventType::kPeerPacket || type_ == EventType::kPeerState ||
@@ -461,6 +491,9 @@ class Event final {
     explicit constexpr Event(SurfaceReleasedEvent released)
         : type_(EventType::kSurfaceReleased), timestamp_(released.timestamp()), surface_released_(released) {}
 
+    explicit constexpr Event(RemoteVideoEvent remote_video)
+        : type_(EventType::kRemoteVideoFrame), timestamp_(remote_video.timestamp()), remote_video_(remote_video) {}
+
     explicit constexpr Event(MicrophoneEvent microphone)
         : type_(EventType::kMicrophone), timestamp_(microphone.timestamp()), microphone_(microphone) {}
 
@@ -483,6 +516,7 @@ class Event final {
     SurfaceReleasedEvent surface_released_{};
     PcmStreamEvent pcm_stream_{};
     MicrophoneEvent microphone_{};
+    RemoteVideoEvent remote_video_{};
     PeerRadioEvent peer_radio_{};
     bool gamepad_handled_{};
     friend class Application;

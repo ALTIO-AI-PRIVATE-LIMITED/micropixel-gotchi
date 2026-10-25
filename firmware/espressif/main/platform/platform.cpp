@@ -101,6 +101,24 @@ UnavailablePeerRadio& MissingPeerRadio() {
     return value;
 }
 
+class UnavailableRemoteVideo final : public device::RemoteVideo {
+   public:
+    [[nodiscard]] micropixel_remote_video_state_t State() const override {
+        micropixel_remote_video_state_t state{};
+        state.size = sizeof(state);
+        return state;
+    }
+    [[nodiscard]] int32_t Start(device::RemoteVideoFrameSink, void*) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
+    [[nodiscard]] int32_t Stop() override { return MICROPIXEL_STATUS_OK; }
+    [[nodiscard]] int32_t ReadFrame(uint16_t*, uint16_t, uint16_t, bool) override {
+        return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
+};
+UnavailableRemoteVideo& MissingRemoteVideo() {
+    static UnavailableRemoteVideo value;
+    return value;
+}
+
 defaults::UnavailableGraphics& MissingGraphics() {
     static defaults::UnavailableGraphics value;
     return value;
@@ -139,7 +157,7 @@ bool PlatformServices::Complete() const {
     return graphics != nullptr && input != nullptr && audio != nullptr && battery != nullptr && random != nullptr &&
            wifi != nullptr && cellular != nullptr && power != nullptr && local_control != nullptr &&
            devices != nullptr && sensors != nullptr && gpio != nullptr && haptics != nullptr &&
-           hid_keyboard != nullptr && microphone != nullptr && peer_radio != nullptr &&
+           hid_keyboard != nullptr && microphone != nullptr && peer_radio != nullptr && remote_video != nullptr &&
            board_info.board != nullptr && system_ui != nullptr;
 }
 
@@ -255,6 +273,7 @@ bool Platform::Publish(const BoardRegistration& registration) {
         .hid_keyboard = registration.hid_keyboard_ != nullptr ? registration.hid_keyboard_ : &MissingHidKeyboard(),
         .microphone = registration.microphone_ != nullptr ? registration.microphone_ : &MissingMicrophone(),
         .peer_radio = registration.peer_radio_ != nullptr ? registration.peer_radio_ : &MissingPeerRadio(),
+        .remote_video = registration.remote_video_ != nullptr ? registration.remote_video_ : &MissingRemoteVideo(),
         .app_storage = registration.app_storage_,
         .app_storage_block_size = registration.app_storage_block_size_,
         .app_storage_removable = registration.app_storage_removable_,

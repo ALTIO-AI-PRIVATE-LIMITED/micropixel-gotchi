@@ -91,6 +91,7 @@ already covers the need; apps must not re-implement these locally.
 | Launch flags and numeric options | `LaunchArguments::HasFlag/GetUnsigned/FindValue` | `launch_arguments.hpp` |
 | Locale-aware strings | `Localization::CurrentLocale` + generated string tables | `localization.hpp` |
 | Haptics, GPIO, power, device discovery | `Haptics`, `Gpio`, `PowerInfo`, `Devices` | `haptics.hpp`, `gpio.hpp`, `power_info.hpp`, `devices.hpp` |
+| Video from a phone on the same Wi-Fi (Host serves the camera page; boards without it report unavailable) | `RemoteVideo` | `remote_video.hpp` |
 | Bluetooth LE keyboard (Host-owned; boards without Bluetooth report unavailable) | `HidKeyboard`, `HidKeySequence` (timed shortcuts, typing, media keys) | `hid_keyboard.hpp`, `hid_key_sequence.hpp` |
 
 ## Game helpers

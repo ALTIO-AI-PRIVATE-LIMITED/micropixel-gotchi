@@ -6,6 +6,7 @@
 #include "sdk/hid_keyboard.hpp"
 #include "sdk/microphone.hpp"
 #include "sdk/peer_radio.hpp"
+#include "sdk/remote_video.hpp"
 #include "sdk/power_info.hpp"
 #include "sdk/sensors.hpp"
 
@@ -42,6 +43,22 @@ ServiceCache peer_radio_service;
 int32_t OpenPeerRadioService() {
     return OpenService(peer_radio_service, MICROPIXEL_SERVICE_PEER_RADIO, MICROPIXEL_PEER_RADIO_INTERFACE_MAJOR,
                        MICROPIXEL_PEER_RADIO_INTERFACE_MINOR);
+}
+
+ServiceCache remote_video_service;
+
+int32_t OpenRemoteVideoService() {
+    return OpenService(remote_video_service, MICROPIXEL_SERVICE_REMOTE_VIDEO, MICROPIXEL_REMOTE_VIDEO_INTERFACE_MAJOR,
+                       MICROPIXEL_REMOTE_VIDEO_INTERFACE_MINOR);
+}
+
+micropixel::Result<void> RemoteVideoVoid(uint32_t method_id) {
+    int32_t status = OpenRemoteVideoService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(remote_video_service, method_id, nullptr, 0U);
+    }
+    return status == MICROPIXEL_STATUS_OK ? micropixel::Result<void>{}
+                                          : micropixel::Result<void>{micropixel::unexpected(ErrorFromStatus(status))};
 }
 
 micropixel::Result<void> PeerRadioVoid(uint32_t method_id, const void* request, uint32_t request_size) {
@@ -726,6 +743,58 @@ Result<PeerPacket> PeerRadio::Receive(uint8_t (&data)[kMaxPayload]) const {
     }
     CopyBytes(data, response + sizeof(header), header.length);
     return PeerPacket{header.length, header.rssi, header.pending, header.dropped};
+}
+
+Result<RemoteVideoState> RemoteVideo::State() const {
+    int32_t status = OpenRemoteVideoService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_remote_video_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(remote_video_service, MICROPIXEL_REMOTE_VIDEO_METHOD_GET_STATE, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("remote_video.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    RemoteVideoState state{};
+    state.available = (response.flags & MICROPIXEL_REMOTE_VIDEO_FLAG_AVAILABLE) != 0U;
+    state.started = (response.flags & MICROPIXEL_REMOTE_VIDEO_FLAG_STARTED) != 0U;
+    state.network = (response.flags & MICROPIXEL_REMOTE_VIDEO_FLAG_NETWORK) != 0U;
+    state.sending = (response.flags & MICROPIXEL_REMOTE_VIDEO_FLAG_SENDING) != 0U;
+    state.frames_received = response.frames_received;
+    state.frames_dropped = response.frames_dropped;
+    state.frame_width = response.frame_width;
+    state.frame_height = response.frame_height;
+    response.url[sizeof(response.url) - 1U] = '\0';
+    CopyBytes(state.url, response.url, sizeof(state.url));
+    return state;
+}
+
+Result<void> RemoteVideo::Start() const { return RemoteVideoVoid(MICROPIXEL_REMOTE_VIDEO_METHOD_START); }
+
+Result<void> RemoteVideo::Stop() const { return RemoteVideoVoid(MICROPIXEL_REMOTE_VIDEO_METHOD_STOP); }
+
+Result<void> RemoteVideo::ReadFrame(uint16_t* pixels, uint32_t width, uint32_t height, bool byte_swapped) const {
+    if (pixels == nullptr || width == 0U || height == 0U || width > kMaxSide || height > kMaxSide) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    int32_t status = OpenRemoteVideoService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_remote_video_read_request_t request{};
+    request.size = sizeof(request);
+    request.flags = byte_swapped ? static_cast<uint16_t>(MICROPIXEL_REMOTE_VIDEO_READ_BYTE_SWAPPED) : 0U;
+    request.width = static_cast<uint16_t>(width);
+    request.height = static_cast<uint16_t>(height);
+    uint32_t response_size = 0U;
+    status = CallService(remote_video_service, MICROPIXEL_REMOTE_VIDEO_METHOD_READ_FRAME, &request, sizeof(request),
+                         pixels, width * height * sizeof(uint16_t), response_size);
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
 }
 
 }  // namespace micropixel

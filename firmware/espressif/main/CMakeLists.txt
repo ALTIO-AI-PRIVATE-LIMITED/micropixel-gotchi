@@ -72,6 +72,13 @@ idf_component_register(
     REQUIRES ${micropixel_requires}
 )
 
+if(CONFIG_MICROPIXEL_BOARD_CHEEKO_GOTCHI)
+    target_add_binary_data(${COMPONENT_LIB}
+        "${CMAKE_CURRENT_LIST_DIR}/platform/remote_video/remote_video_page.html" BINARY)
+    target_add_binary_data(${COMPONENT_LIB} "${micropixel_remote_video_cert}" TEXT)
+    target_add_binary_data(${COMPONENT_LIB} "${micropixel_remote_video_key}" TEXT)
+endif()
+
 # A stable mutable font proxy is populated after lv_init and before widgets.
 # Host UI and Guest system handles share the same Tiny TTF implementation.
 idf_component_get_property(micropixel_lvgl_lib lvgl__lvgl COMPONENT_LIB)

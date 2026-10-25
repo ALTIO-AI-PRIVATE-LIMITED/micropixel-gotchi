@@ -15,6 +15,7 @@
 #include "device/contracts/hid_keyboard.hpp"
 #include "device/contracts/input.hpp"
 #include "device/contracts/microphone.hpp"
+#include "device/contracts/remote_video.hpp"
 #include "device/contracts/peer_radio.hpp"
 #include "device/contracts/random.hpp"
 #include "device/contracts/sensors.hpp"
@@ -121,6 +122,20 @@ class MicrophoneService final {
     Microphone& implementation_;
 };
 
+class RemoteVideoService final {
+   public:
+    explicit RemoteVideoService(RemoteVideo& implementation) : implementation_(implementation) {}
+
+    [[nodiscard]] micropixel_remote_video_state_t State() const { return implementation_.State(); }
+    [[nodiscard]] DeviceResult<void> Start(RemoteVideoFrameSink sink, void* context) const;
+    [[nodiscard]] DeviceResult<void> Stop() const;
+    [[nodiscard]] DeviceResult<void> ReadFrame(uint16_t* pixels, uint16_t width, uint16_t height,
+                                               bool byte_swapped) const;
+
+   private:
+    RemoteVideo& implementation_;
+};
+
 class PeerRadioService final {
    public:
     explicit PeerRadioService(PeerRadio& implementation) : implementation_(implementation) {}
@@ -225,7 +240,8 @@ class DeviceServices final {
    public:
     DeviceServices(Graphics& graphics, DisplayInfo display, Input& input, Audio& audio, Random& random,
                    DeviceCatalog& devices, Sensors& sensors, Gpio& gpio, Haptics& haptics, Battery& battery,
-                   HidKeyboard& hid_keyboard, Microphone& microphone, PeerRadio& peer_radio)
+                   HidKeyboard& hid_keyboard, Microphone& microphone, PeerRadio& peer_radio,
+                   RemoteVideo& remote_video)
         : graphics_(graphics, display),
           input_(input),
           audio_(audio),
@@ -237,7 +253,8 @@ class DeviceServices final {
           power_info_(devices, battery),
           hid_keyboard_(hid_keyboard),
           microphone_(microphone),
-          peer_radio_(peer_radio) {}
+          peer_radio_(peer_radio),
+          remote_video_(remote_video) {}
     DeviceServices(const DeviceServices&) = delete;
     DeviceServices& operator=(const DeviceServices&) = delete;
 
@@ -277,6 +294,9 @@ class DeviceServices final {
     [[nodiscard]] PeerRadioService& peer_radio() {  // NOLINT(readability-identifier-naming)
         return peer_radio_;
     }
+    [[nodiscard]] RemoteVideoService& remote_video() {  // NOLINT(readability-identifier-naming)
+        return remote_video_;
+    }
 
    private:
     GraphicsService graphics_;
@@ -291,6 +311,7 @@ class DeviceServices final {
     HidKeyboardService hid_keyboard_;
     MicrophoneService microphone_;
     PeerRadioService peer_radio_;
+    RemoteVideoService remote_video_;
 };
 
 }  // namespace micropixel::device

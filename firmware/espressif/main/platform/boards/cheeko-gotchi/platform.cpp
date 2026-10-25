@@ -36,6 +36,7 @@
 #include "platform/memory/internal_ram.hpp"
 #include "platform/transports/development_display_control.hpp"
 #include "platform/transports/usb_serial_jtag_local_control.hpp"
+#include "platform/remote_video/https_remote_video.hpp"
 #include "platform/wifi/esp_now_peer_radio.hpp"
 #include "platform/wifi/native_wifi_radio.hpp"
 #include "platform/wifi/wifi_manager.hpp"
@@ -290,6 +291,14 @@ class CheekoGotchiBoard final : public Board {
             registration.SetPeerRadio(peer_radio_);
         } else {
             ESP_LOGW(kTag, "peer radio unavailable for this boot: %s", esp_err_to_name(radio_status));
+        }
+        // The camera page server and its frames live in PSRAM and only run
+        // while an App has Remote Video started.
+        static MICROPIXEL_EXT_RAM_BSS remote_video::HttpsRemoteVideo remote_video;
+        if (const esp_err_t video_status = remote_video.Initialize(); video_status == ESP_OK) {
+            registration.SetRemoteVideo(remote_video);
+        } else {
+            ESP_LOGW(kTag, "remote video unavailable for this boot: %s", esp_err_to_name(video_status));
         }
         bool registered = true;
         if (sensors_.acceleration_available()) {

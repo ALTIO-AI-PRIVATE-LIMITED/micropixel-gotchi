@@ -112,6 +112,16 @@ bool Application::DecodeEventInternal(Event& event, uint64_t timeout_us) const {
         return true;
     }
 
+    if (raw.service_id == MICROPIXEL_SERVICE_REMOTE_VIDEO && raw.event_id == MICROPIXEL_REMOTE_VIDEO_EVENT_FRAME) {
+        micropixel_remote_video_frame_event_payload_t payload{};
+        CopyBytes(&payload, raw.payload, sizeof(payload));
+        if (payload.reserved0[0] != 0U || payload.reserved0[1] != 0U || raw.status != MICROPIXEL_STATUS_OK) {
+            runtime::Panic("application.wait_event.remote_video_payload", MICROPIXEL_STATUS_INTERNAL);
+        }
+        event = Event{RemoteVideoEvent{timestamp, payload.frames_received, payload.frame_width, payload.frame_height}};
+        return true;
+    }
+
     if (raw.service_id == MICROPIXEL_SERVICE_PEER_RADIO) {
         PeerRadioEvent peer{};
         peer.timestamp_ = timestamp;

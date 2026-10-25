@@ -32,6 +32,7 @@ list(APPEND micropixel_sources
     "runtime/services/microphone_service.cpp"
     "runtime/services/peer_radio_service.cpp"
     "runtime/services/raster_service.cpp"
+    "runtime/services/remote_video_service.cpp"
     "runtime/services/sensor_service.cpp"
     "runtime/services/timer_service.cpp"
     "runtime/touch_event_bridge.cpp"
