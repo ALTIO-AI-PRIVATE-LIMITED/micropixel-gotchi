@@ -18,6 +18,7 @@
 #include "sdk/launch_arguments.hpp"
 #include "sdk/localization.hpp"
 #include "sdk/microphone.hpp"
+#include "sdk/remote_video.hpp"
 #include "sdk/peer_radio.hpp"
 #include "sdk/math.hpp"
 #include "sdk/panic.hpp"

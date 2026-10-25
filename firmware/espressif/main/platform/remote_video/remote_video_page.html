@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gotchi Cam</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; min-height: 100vh; background: #0e1016; color: #eef0f4;
+         font: 16px -apple-system, system-ui, sans-serif; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; gap: 16px; padding: 16px; box-sizing: border-box; }
+  video { width: 100%; max-width: 480px; aspect-ratio: 296 / 240; object-fit: cover;
+          background: #000; border-radius: 12px; }
+  .row { display: flex; gap: 12px; }
+  button { font: inherit; padding: 12px 20px; border: 0; border-radius: 10px; background: #fa7a1a; color: #0e1016;
+           font-weight: 600; }
+  button.secondary { background: #2a2e38; color: #eef0f4; }
+  #status { color: #969eac; min-height: 1.2em; text-align: center; }
+</style>
+</head>
+<body>
+<video id="preview" playsinline muted autoplay></video>
+<div class="row">
+  <button id="start">Start camera</button>
+  <button id="flip" class="secondary" hidden>Flip</button>
+</div>
+<div id="status">Tap Start to send this camera to your Gotchi.</div>
+<script>
+// The Gotchi screen is 296 x 240: send exactly that, center-cropped.
+const WIDTH = 296, HEIGHT = 240, QUALITY = 0.6;
+const video = document.getElementById("preview");
+const status = document.getElementById("status");
+const startButton = document.getElementById("start");
+const flipButton = document.getElementById("flip");
+const canvas = document.createElement("canvas");
+canvas.width = WIDTH;
+canvas.height = HEIGHT;
+const context = canvas.getContext("2d");
+let facing = "environment";
+let stream = null;
+let running = false;
+
+async function openCamera() {
+  if (stream) stream.getTracks().forEach((track) => track.stop());
+  stream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: { facingMode: facing, width: { ideal: 640 }, height: { ideal: 480 } },
+  });
+  video.srcObject = stream;
+  await video.play();
+}
+
+function grabFrame() {
+  const sw = video.videoWidth, sh = video.videoHeight;
+  if (!sw || !sh) return Promise.resolve(null);
+  const scale = Math.max(WIDTH / sw, HEIGHT / sh);
+  const cw = WIDTH / scale, ch = HEIGHT / scale;
+  context.drawImage(video, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, WIDTH, HEIGHT);
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", QUALITY));
+}
+
+async function sendLoop() {
+  let frames = 0, bytes = 0, since = performance.now();
+  while (running) {
+    const blob = await grabFrame();
+    if (!blob) { await new Promise((r) => setTimeout(r, 100)); continue; }
+    try {
+      const response = await fetch("/frame", { method: "POST", body: blob, headers: { "Content-Type": "image/jpeg" } });
+      if (!response.ok) throw new Error("Gotchi said " + response.status);
+      frames++;
+      bytes += blob.size;
+    } catch (error) {
+      status.textContent = "Not reaching the Gotchi (" + error.message + "). Retrying...";
+      await new Promise((r) => setTimeout(r, 1000));
+      continue;
+    }
+    const now = performance.now();
+    if (now - since >= 1000) {
+      const seconds = (now - since) / 1000;
+      status.textContent = "Live: " + (frames / seconds).toFixed(1) + " fps, " +
+                           Math.round(bytes / frames / 1024) + " KB per frame";
+      frames = 0; bytes = 0; since = now;
+    }
+  }
+}
+
+startButton.addEventListener("click", async () => {
+  if (running) {
+    running = false;
+    if (stream) stream.getTracks().forEach((track) => track.stop());
+    stream = null;
+    startButton.textContent = "Start camera";
+    flipButton.hidden = true;
+    status.textContent = "Stopped.";
+    return;
+  }
+  try {
+    await openCamera();
+  } catch (error) {
+    status.textContent = "Camera blocked: " + error.message;
+    return;
+  }
+  running = true;
+  startButton.textContent = "Stop";
+  flipButton.hidden = false;
+  status.textContent = "Connecting...";
+  sendLoop();
+});
+
+flipButton.addEventListener("click", async () => {
+  facing = facing === "environment" ? "user" : "environment";
+  try { await openCamera(); } catch (error) { status.textContent = "Camera blocked: " + error.message; }
+});
+</script>
+</body>
+</html>

@@ -20,6 +20,7 @@
 #include "runtime/services/microphone_service.hpp"
 #include "runtime/services/peer_radio_service.hpp"
 #include "runtime/services/raster_service.hpp"
+#include "runtime/services/remote_video_service.hpp"
 #include "runtime/services/sensor_service.hpp"
 #include "runtime/services/storage_service.hpp"
 #include "runtime/services/timer_service.hpp"
@@ -277,6 +278,13 @@ class GuestContext final {
                                                                                        uint32_t max_samples) {
         return microphone_.Read(samples_out, max_samples);
     }
+    [[nodiscard]] micropixel_remote_video_state_t RemoteVideoState() const { return remote_video_.State(); }
+    [[nodiscard]] ServiceResult<void> RemoteVideoStart() { return remote_video_.Start(); }
+    [[nodiscard]] ServiceResult<void> RemoteVideoStop() { return remote_video_.Stop(); }
+    [[nodiscard]] ServiceResult<void> RemoteVideoReadFrame(uint16_t* pixels, uint16_t width, uint16_t height,
+                                                           bool byte_swapped) {
+        return remote_video_.ReadFrame(pixels, width, height, byte_swapped);
+    }
     [[nodiscard]] micropixel_peer_radio_state_t PeerRadioState() const { return peer_radio_.State(); }
     [[nodiscard]] ServiceResult<void> PeerRadioStart() { return peer_radio_.Start(); }
     [[nodiscard]] ServiceResult<void> PeerRadioStop() { return peer_radio_.Stop(); }
@@ -379,6 +387,7 @@ class GuestContext final {
     GpioService gpio_;
     HapticsService haptics_;
     MicrophoneService microphone_;
+    RemoteVideoService remote_video_;
     PeerRadioService peer_radio_;
     ResourceService resources_;
     AudioPlaybackService audio_playback_;
@@ -403,6 +412,7 @@ class GuestContext final {
     PowerInfoServiceEndpoint power_info_endpoint_;
     HidKeyboardServiceEndpoint hid_keyboard_endpoint_;
     MicrophoneServiceEndpoint microphone_endpoint_;
+    RemoteVideoServiceEndpoint remote_video_endpoint_;
     PeerRadioServiceEndpoint peer_radio_endpoint_;
     ServiceRegistry service_registry_;
     uint32_t core_sequence_{};

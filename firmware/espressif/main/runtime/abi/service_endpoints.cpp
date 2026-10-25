@@ -489,6 +489,61 @@ SystemServiceEndpoint::SystemServiceEndpoint(std::string_view effective_locale,
     std::memcpy(effective_locale_.data(), effective_locale.data(), effective_locale.size());
 }
 
+ServiceDescriptor RemoteVideoServiceEndpoint::Describe() const {
+    return ServiceDescriptor{
+        .service_id = MICROPIXEL_SERVICE_REMOTE_VIDEO,
+        .interface_major = MICROPIXEL_REMOTE_VIDEO_INTERFACE_MAJOR,
+        .interface_minor = MICROPIXEL_REMOTE_VIDEO_INTERFACE_MINOR,
+        .flags = MICROPIXEL_SERVICE_FLAG_CALL | MICROPIXEL_SERVICE_FLAG_EVENTS,
+        .max_request_bytes = sizeof(micropixel_remote_video_read_request_t),
+        .max_response_bytes = MICROPIXEL_REMOTE_VIDEO_MAX_SIDE * MICROPIXEL_REMOTE_VIDEO_MAX_SIDE * sizeof(uint16_t),
+    };
+}
+
+int32_t RemoteVideoServiceEndpoint::Call(uint32_t method_id, const uint8_t* request, uint32_t request_size,
+                                         uint8_t* response, uint32_t response_capacity,
+                                         uint32_t& response_size_out) {
+    switch (method_id) {
+        case MICROPIXEL_REMOTE_VIDEO_METHOD_GET_STATE:
+            return EmptyRequest(request_size)
+                       ? WriteValue(context_.RemoteVideoState(), response, response_capacity, response_size_out)
+                       : static_cast<int32_t>(MICROPIXEL_STATUS_INVALID_ARGUMENT);
+        case MICROPIXEL_REMOTE_VIDEO_METHOD_START:
+            return EmptyRequest(request_size) ? ResultStatus(context_.RemoteVideoStart())
+                                              : static_cast<int32_t>(MICROPIXEL_STATUS_INVALID_ARGUMENT);
+        case MICROPIXEL_REMOTE_VIDEO_METHOD_STOP:
+            return EmptyRequest(request_size) ? ResultStatus(context_.RemoteVideoStop())
+                                              : static_cast<int32_t>(MICROPIXEL_STATUS_INVALID_ARGUMENT);
+        case MICROPIXEL_REMOTE_VIDEO_METHOD_READ_FRAME: {
+            micropixel_remote_video_read_request_t wire{};
+            if (!ReadRequest(request, request_size, wire) ||
+                (wire.flags & ~static_cast<uint16_t>(MICROPIXEL_REMOTE_VIDEO_READ_BYTE_SWAPPED)) != 0U ||
+                wire.width == 0U || wire.height == 0U || wire.width > MICROPIXEL_REMOTE_VIDEO_MAX_SIDE ||
+                wire.height > MICROPIXEL_REMOTE_VIDEO_MAX_SIDE) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            const uint32_t bytes = static_cast<uint32_t>(wire.width) * wire.height * sizeof(uint16_t);
+            if (response == nullptr || response_capacity < bytes) {
+                response_size_out = bytes;
+                return MICROPIXEL_STATUS_BUFFER_TOO_SMALL;
+            }
+            // Xtensa faults on unaligned 16-bit stores.
+            if ((reinterpret_cast<uintptr_t>(response) & 1U) != 0U) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            const int32_t status = ResultStatus(context_.RemoteVideoReadFrame(
+                reinterpret_cast<uint16_t*>(response), wire.width, wire.height,
+                (wire.flags & MICROPIXEL_REMOTE_VIDEO_READ_BYTE_SWAPPED) != 0U));
+            if (status == MICROPIXEL_STATUS_OK) {
+                response_size_out = bytes;
+            }
+            return status;
+        }
+        default:
+            return MICROPIXEL_STATUS_UNSUPPORTED;
+    }
+}
+
 ServiceDescriptor SystemServiceEndpoint::Describe() const {
     return ServiceDescriptor{
         .service_id = MICROPIXEL_SERVICE_SYSTEM,

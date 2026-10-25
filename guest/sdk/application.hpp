@@ -16,6 +16,7 @@
 #include "sdk/launch_arguments.hpp"
 #include "sdk/localization.hpp"
 #include "sdk/microphone.hpp"
+#include "sdk/remote_video.hpp"
 #include "sdk/peer_radio.hpp"
 #include "sdk/log.hpp"
 #include "sdk/power_info.hpp"
@@ -74,6 +75,9 @@ class Application final {
         return Microphone{Microphone::CapabilityToken{}};
     }
     [[nodiscard]] constexpr PeerRadio peer_radio() const noexcept { return PeerRadio{PeerRadio::CapabilityToken{}}; }
+    [[nodiscard]] constexpr RemoteVideo remote_video() const noexcept {
+        return RemoteVideo{RemoteVideo::CapabilityToken{}};
+    }
 
     template <typename Handler>
     void Run(Handler&& handler) const {

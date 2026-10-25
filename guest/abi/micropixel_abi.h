@@ -62,6 +62,12 @@
 #define MICROPIXEL_PEER_RADIO_INTERFACE_MINOR 0U
 /* Largest Guest payload in one Peer Radio packet. */
 #define MICROPIXEL_PEER_RADIO_MAX_PAYLOAD 240U
+#define MICROPIXEL_REMOTE_VIDEO_INTERFACE_MAJOR 1U
+#define MICROPIXEL_REMOTE_VIDEO_INTERFACE_MINOR 0U
+/* Longest page address GET_STATE reports, without the terminator. */
+#define MICROPIXEL_REMOTE_VIDEO_MAX_URL_BYTES 31U
+/* Largest frame side READ_FRAME accepts. */
+#define MICROPIXEL_REMOTE_VIDEO_MAX_SIDE 480U
 #define MICROPIXEL_DEVICES_LIST_PAGE_SIZE 16U
 #define MICROPIXEL_DEVICE_NAME_MAX_BYTES 39U
 
@@ -118,6 +124,8 @@ typedef enum micropixel_service_id {
     MICROPIXEL_SERVICE_HID_KEYBOARD = 24,
     MICROPIXEL_SERVICE_MICROPHONE = 25,
     MICROPIXEL_SERVICE_PEER_RADIO = 26,
+    /* 27 is taken by the Call service on the gotchi-call branches. */
+    MICROPIXEL_SERVICE_REMOTE_VIDEO = 28,
 } micropixel_service_id_t;
 
 typedef enum micropixel_service_flag {
@@ -764,6 +772,70 @@ typedef struct micropixel_peer_radio_candidate_event_payload {
     int8_t rssi;
     uint8_t reserved0[7];
 } micropixel_peer_radio_candidate_event_payload_t;
+
+/* Video sent by another device on the local network. START serves an HTTPS
+ * page on the Wi-Fi network (address in GET_STATE `url`); a phone browser
+ * that opens it streams its camera to the Host as JPEG frames, which the Host
+ * decodes. FRAME fires when a newer frame is ready and the Guest has read the
+ * previous one (READ_FRAME re-arms it). READ_FRAME copies the newest frame,
+ * centered and cropped (black where it does not cover), into a `width` x
+ * `height` RGB565 buffer: the response bytes, `width * height * 2` of them.
+ * It returns WOULD_BLOCK when nothing newer arrived since the last read. The
+ * page stops at STOP, App suspend and session end. */
+typedef enum micropixel_remote_video_method {
+    MICROPIXEL_REMOTE_VIDEO_METHOD_GET_STATE = 1,
+    MICROPIXEL_REMOTE_VIDEO_METHOD_START = 2,
+    MICROPIXEL_REMOTE_VIDEO_METHOD_STOP = 3,
+    MICROPIXEL_REMOTE_VIDEO_METHOD_READ_FRAME = 4,
+} micropixel_remote_video_method_t;
+
+typedef enum micropixel_remote_video_event_id {
+    MICROPIXEL_REMOTE_VIDEO_EVENT_FRAME = 1,
+} micropixel_remote_video_event_id_t;
+
+typedef enum micropixel_remote_video_flag {
+    /* The board can receive video. */
+    MICROPIXEL_REMOTE_VIDEO_FLAG_AVAILABLE = 1U << 0U,
+    /* START succeeded and the page is being served. */
+    MICROPIXEL_REMOTE_VIDEO_FLAG_STARTED = 1U << 1U,
+    /* The device has an address on Wi-Fi; `url` is valid. */
+    MICROPIXEL_REMOTE_VIDEO_FLAG_NETWORK = 1U << 2U,
+    /* A frame arrived in the last two seconds. */
+    MICROPIXEL_REMOTE_VIDEO_FLAG_SENDING = 1U << 3U,
+} micropixel_remote_video_flag_t;
+
+typedef struct micropixel_remote_video_state {
+    uint16_t size;
+    uint16_t reserved0;
+    uint32_t flags;
+    /* Frames decoded, and frames rejected (bad JPEG or too large), since START. */
+    uint32_t frames_received;
+    uint32_t frames_dropped;
+    /* Size of the newest frame; zero before the first one. */
+    uint16_t frame_width;
+    uint16_t frame_height;
+    uint32_t reserved1;
+    char url[MICROPIXEL_REMOTE_VIDEO_MAX_URL_BYTES + 1U];
+} micropixel_remote_video_state_t;
+
+typedef enum micropixel_remote_video_read_flag {
+    /* Write each RGB565 value with its two bytes swapped (panel order). */
+    MICROPIXEL_REMOTE_VIDEO_READ_BYTE_SWAPPED = 1U << 0U,
+} micropixel_remote_video_read_flag_t;
+
+typedef struct micropixel_remote_video_read_request {
+    uint16_t size;
+    uint16_t flags;
+    uint16_t width;
+    uint16_t height;
+} micropixel_remote_video_read_request_t;
+
+typedef struct micropixel_remote_video_frame_event_payload {
+    uint32_t frames_received;
+    uint16_t frame_width;
+    uint16_t frame_height;
+    uint32_t reserved0[2];
+} micropixel_remote_video_frame_event_payload_t;
 
 typedef enum micropixel_graphics_method {
     MICROPIXEL_GRAPHICS_METHOD_GET_INFO = 1,
@@ -1972,6 +2044,12 @@ MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_read_response_t) == 16
                              "micropixel_microphone_read_response_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_microphone_event_payload_t) == 16U,
                              "micropixel_microphone_event_payload_t ABI size changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_remote_video_state_t) == 56U,
+                             "remote video state wire layout changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_remote_video_read_request_t) == 8U,
+                             "remote video read request wire layout changed");
+MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_remote_video_frame_event_payload_t) == 16U,
+                             "remote video frame event wire layout changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_state_t) == 32U,
                              "micropixel_peer_radio_state_t ABI size changed");
 MICROPIXEL_ABI_STATIC_ASSERT(sizeof(micropixel_peer_radio_accept_request_t) == 8U,
