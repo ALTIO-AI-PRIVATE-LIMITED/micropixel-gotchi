@@ -4266,7 +4266,14 @@ HostController::HostController(device::DeviceServices& devices, runtime::AppStor
         },
         this);
     controls_.SetCommandReadySink(
-        [](void* context) { static_cast<host_ui::SystemShell*>(context)->NotifyRemoteCommandReady(); }, &shell_);
+        [](void* context) {
+            // A USB or remote command means someone is using the device, so it
+            // also holds off the idle sleep.
+            auto* shell = static_cast<host_ui::SystemShell*>(context);
+            shell->NotifyRemoteCommandReady();
+            shell->NotifyUserActivity();
+        },
+        &shell_);
     devices_.input().SetActivitySink(
         [](void* context) { static_cast<host_ui::SystemShell*>(context)->NotifyUserActivity(); }, &shell_);
     power_.SetPowerButtonSink(
