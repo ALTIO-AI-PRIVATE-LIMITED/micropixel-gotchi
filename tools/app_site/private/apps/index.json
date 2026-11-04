@@ -220,6 +220,33 @@
       "file": "apps/wispr-key.bundle.bin",
       "sizeBytes": 262144,
       "sha256": "aeccc520fa59dcc62d32a216c366462521dfa435ce237392f44fd8a65688faf7"
+    },
+    {
+      "appId": "cheeko.devcon-wall",
+      "title": "DevCon Wall",
+      "version": "0.1.0",
+      "summary": "Nine Gotchis in a 3x3 frame play the DevCon 8 India logo as one display. Needs the latest Gotchi firmware.",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "landscape"
+          ],
+          "min_width": 296,
+          "min_height": 240
+        },
+        "required": [],
+        "optional": [
+          "input.keys",
+          "input.touch"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/devcon-wall.bundle.bin",
+      "sizeBytes": 327680,
+      "sha256": "46850c53f6ea05f41ef57fa8aebe9487623d12a744dac14ef0279a96fe29a1ae"
     }
   ]
 }

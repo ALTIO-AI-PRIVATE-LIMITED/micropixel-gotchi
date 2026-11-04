@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-BUILD = REPO / "build/host-esp32s3-gotchi"
+BUILD = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else REPO / "build/host-esp32s3-gotchi"
 OUT = Path(__file__).resolve().parent / "private/firmware"
 
 
