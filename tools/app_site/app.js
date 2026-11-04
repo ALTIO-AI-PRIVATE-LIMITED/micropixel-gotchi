@@ -191,21 +191,18 @@ async function post(url, body) {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Something went wrong'); return j;
 }
-let ticket = null;
-$('emailForm').onsubmit = async e => {
-  e.preventDefault(); $('sendBtn').disabled = true; $('loginMsg').textContent = 'Sending…';
-  try { ticket = (await post('/api/auth/send', { email: $('email').value })).ticket;
-        $('codeForm').hidden = false; $('code').focus(); $('loginMsg').textContent = `Code sent to ${$('email').value}. Check your inbox.`; }
-  catch (err) { $('loginMsg').textContent = err.message; }
-  $('sendBtn').disabled = false;
-};
-$('codeForm').onsubmit = async e => {
-  e.preventDefault(); $('verifyBtn').disabled = true;
-  try { const { email } = await post('/api/auth/verify', { email: $('email').value, code: $('code').value, ticket }); await enter(email); }
-  catch (err) { $('loginMsg').textContent = err.message; }
-  $('verifyBtn').disabled = false;
-};
-$('signout').onclick = async e => { e.preventDefault(); await post('/api/auth/me', {}); location.reload(); };
+async function showLogin() {
+  $('login').hidden = false;
+  const { googleClientId } = await fetch('/api/auth/config').then(r => r.json()).catch(() => ({}));
+  if (!googleClientId) { $('loginMsg').textContent = 'Google sign-in is not set up yet.'; return; }
+  await new Promise((ok, fail) => { const s = document.createElement('script'); s.src = 'https://accounts.google.com/gsi/client'; s.onload = ok; s.onerror = fail; document.head.append(s); });
+  google.accounts.id.initialize({ client_id: googleClientId, callback: async ({ credential }) => {
+    try { const { email } = await post('/api/auth/google', { credential }); await enter(email); }
+    catch (err) { $('loginMsg').textContent = err.message; }
+  } });
+  google.accounts.id.renderButton($('googleBtn'), { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with' });
+}
+$('signout').onclick = async e => { e.preventDefault(); await post('/api/auth/me', {}); try { google.accounts.id.disableAutoSelect(); } catch {} location.reload(); };
 
 async function enter(email) {
   $('login').hidden = true; $('appView').hidden = false; $('who').textContent = email;
@@ -259,4 +256,4 @@ $('fwUpdate').onclick = () => flash('update');
 $('fwFull').onclick = () => confirmThen('Full reset erases every app and setting on this Gotchi, then installs the firmware. You can reinstall apps from this page after. Continue?', () => flash('full'));
 
 const me = await fetch('/api/auth/me').then(r => r.ok ? r.json() : null).catch(() => null);
-if (me?.email) await enter(me.email); else $('login').hidden = false;
+if (me?.email) await enter(me.email); else await showLogin();

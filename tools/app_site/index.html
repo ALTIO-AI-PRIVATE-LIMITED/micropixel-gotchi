@@ -56,15 +56,8 @@
   <div class="card" style="max-width:420px">
     <div class="body">
       <h3>Sign in</h3>
-      <p class="sum" style="-webkit-line-clamp:unset">Enter your email. We'll send you a 6-digit code.</p>
-      <form id="emailForm" class="bar">
-        <input type="email" id="email" required placeholder="you@example.com" autocomplete="email" style="flex:1">
-        <button class="primary" id="sendBtn">Send code</button>
-      </form>
-      <form id="codeForm" class="bar" hidden>
-        <input id="code" inputmode="numeric" pattern="\d{6}" maxlength="6" required placeholder="6-digit code" autocomplete="one-time-code" style="flex:1">
-        <button class="primary" id="verifyBtn">Sign in</button>
-      </form>
+      <p class="sum" style="-webkit-line-clamp:unset">Sign in with your Google account to install apps and firmware on your Gotchi.</p>
+      <div id="googleBtn"></div>
       <small class="meta" id="loginMsg"></small>
     </div>
   </div>
