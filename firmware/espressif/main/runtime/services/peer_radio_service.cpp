@@ -75,6 +75,10 @@ ServiceResult<void> PeerRadioService::Send(const uint8_t* data, uint32_t length)
     return Forward(radio_.Send(data, length));
 }
 
+ServiceResult<void> PeerRadioService::Broadcast(const uint8_t* data, uint32_t length) {
+    return Forward(radio_.Broadcast(data, length));
+}
+
 ServiceResult<micropixel_peer_radio_receive_response_t> PeerRadioService::Receive(uint8_t* payload_out,
                                                                                    uint32_t capacity) {
     micropixel_peer_radio_receive_response_t response{};

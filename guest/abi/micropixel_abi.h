@@ -59,7 +59,7 @@
 /* Most mono int16 samples one Microphone READ returns. */
 #define MICROPIXEL_MICROPHONE_MAX_READ_SAMPLES 960U
 #define MICROPIXEL_PEER_RADIO_INTERFACE_MAJOR 1U
-#define MICROPIXEL_PEER_RADIO_INTERFACE_MINOR 0U
+#define MICROPIXEL_PEER_RADIO_INTERFACE_MINOR 1U
 /* Largest Guest payload in one Peer Radio packet. */
 #define MICROPIXEL_PEER_RADIO_MAX_PAYLOAD 240U
 #define MICROPIXEL_BLE_LINK_INTERFACE_MAJOR 1U
@@ -717,7 +717,10 @@ typedef struct micropixel_microphone_event_payload {
  * both screens show. PAIR_ACCEPT stores that device (it survives restarts)
  * and encrypts the link; the other side must accept too. SEND delivers to the
  * paired peer only, without retries; packets from it arrive as PACKET events
- * and RECEIVE pulls them oldest first. STATE fires when the flags change. */
+ * and RECEIVE pulls them oldest first. STATE fires when the flags change.
+ * BROADCAST (1.1) sends to every started device in range, paired or not, with
+ * the SEND request; broadcasts from others arrive as PACKET events too. While
+ * an App broadcasts and Wi-Fi is not joined, the radio stays on channel 1. */
 typedef enum micropixel_peer_radio_method {
     MICROPIXEL_PEER_RADIO_METHOD_GET_STATE = 1,
     MICROPIXEL_PEER_RADIO_METHOD_START = 2,
@@ -727,6 +730,7 @@ typedef enum micropixel_peer_radio_method {
     MICROPIXEL_PEER_RADIO_METHOD_FORGET = 6,
     MICROPIXEL_PEER_RADIO_METHOD_SEND = 7,
     MICROPIXEL_PEER_RADIO_METHOD_RECEIVE = 8,
+    MICROPIXEL_PEER_RADIO_METHOD_BROADCAST = 9,
 } micropixel_peer_radio_method_t;
 
 typedef enum micropixel_peer_radio_event_id {

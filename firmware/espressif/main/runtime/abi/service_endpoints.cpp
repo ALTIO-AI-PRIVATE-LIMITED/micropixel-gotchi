@@ -648,6 +648,14 @@ int32_t PeerRadioServiceEndpoint::Call(uint32_t method_id, const uint8_t* reques
             }
             return ResultStatus(context_.PeerRadioSend(request + sizeof(wire), wire.length));
         }
+        case MICROPIXEL_PEER_RADIO_METHOD_BROADCAST: {
+            micropixel_peer_radio_send_request_t wire{};
+            if (!ReadVariableRequest(request, request_size, wire) || wire.size != sizeof(wire) || wire.length == 0U ||
+                wire.length > MICROPIXEL_PEER_RADIO_MAX_PAYLOAD || request_size != sizeof(wire) + wire.length) {
+                return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+            }
+            return ResultStatus(context_.PeerRadioBroadcast(request + sizeof(wire), wire.length));
+        }
         case MICROPIXEL_PEER_RADIO_METHOD_RECEIVE: {
             using Header = micropixel_peer_radio_receive_response_t;
             if (!EmptyRequest(request_size)) {

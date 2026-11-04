@@ -37,6 +37,7 @@ class PeerRadioService final {
     [[nodiscard]] ServiceResult<void> AcceptPeer(const uint8_t (&address)[6]);
     [[nodiscard]] ServiceResult<void> Forget();
     [[nodiscard]] ServiceResult<void> Send(const uint8_t* data, uint32_t length);
+    [[nodiscard]] ServiceResult<void> Broadcast(const uint8_t* data, uint32_t length);
     // Copies the oldest packet into `payload_out` (Guest memory, `capacity`).
     [[nodiscard]] ServiceResult<micropixel_peer_radio_receive_response_t> Receive(uint8_t* payload_out,
                                                                                    uint32_t capacity);

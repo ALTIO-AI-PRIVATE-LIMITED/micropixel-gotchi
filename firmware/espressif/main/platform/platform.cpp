@@ -95,6 +95,7 @@ class UnavailablePeerRadio final : public device::PeerRadio {
     [[nodiscard]] int32_t AcceptPeer(const uint8_t (&)[6]) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
     [[nodiscard]] int32_t Forget() override { return MICROPIXEL_STATUS_UNSUPPORTED; }
     [[nodiscard]] int32_t Send(const uint8_t*, uint32_t) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
+    [[nodiscard]] int32_t Broadcast(const uint8_t*, uint32_t) override { return MICROPIXEL_STATUS_UNSUPPORTED; }
 };
 UnavailablePeerRadio& MissingPeerRadio() {
     static UnavailablePeerRadio value;

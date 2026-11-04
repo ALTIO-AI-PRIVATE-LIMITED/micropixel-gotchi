@@ -24,6 +24,8 @@ constexpr uint8_t kMagic1 = 'W';
 constexpr uint8_t kFrameHello = 1U;
 constexpr uint8_t kFrameBeacon = 2U;
 constexpr uint8_t kFrameData = 3U;
+constexpr uint8_t kFrameGroup = 4U;
+constexpr int64_t kGroupHoldUs = 3000000;
 constexpr uint32_t kHeaderBytes = 3U;
 constexpr uint8_t kRendezvousChannel = 1U;
 constexpr uint8_t kMaxChannel = 13U;
@@ -372,6 +374,31 @@ int32_t EspNowPeerRadio::Send(const uint8_t* data, uint32_t length) {
     return status == ESP_ERR_ESPNOW_NO_MEM ? MICROPIXEL_STATUS_RATE_LIMITED : MICROPIXEL_STATUS_INTERNAL;
 }
 
+int32_t EspNowPeerRadio::Broadcast(const uint8_t* data, uint32_t length) {
+    if (!running_.load(std::memory_order_acquire)) {
+        return MICROPIXEL_STATUS_CLOSED;
+    }
+    if (data == nullptr || length == 0U || length > MICROPIXEL_PEER_RADIO_MAX_PAYLOAD) {
+        return MICROPIXEL_STATUS_INVALID_ARGUMENT;
+    }
+    const bool was_grouping = group_until_us_.load(std::memory_order_relaxed) > esp_timer_get_time();
+    group_until_us_.store(esp_timer_get_time() + kGroupHoldUs, std::memory_order_relaxed);
+    if (!was_grouping) {
+        xTaskNotifyGive(task_);  // Move to the group channel now.
+    }
+    uint8_t frame[kHeaderBytes + MICROPIXEL_PEER_RADIO_MAX_PAYLOAD];
+    frame[0] = kMagic0;
+    frame[1] = kMagic1;
+    frame[2] = kFrameGroup;
+    std::memcpy(frame + kHeaderBytes, data, length);
+    const esp_err_t status = esp_now_send(kBroadcast, frame, kHeaderBytes + length);
+    if (status == ESP_OK) {
+        packets_sent_.fetch_add(1U, std::memory_order_relaxed);
+        return MICROPIXEL_STATUS_OK;
+    }
+    return status == ESP_ERR_ESPNOW_NO_MEM ? MICROPIXEL_STATUS_RATE_LIMITED : MICROPIXEL_STATUS_INTERNAL;
+}
+
 void EspNowPeerRadio::OnReceive(const esp_now_recv_info_t* info, const uint8_t* data, int length) {
     EspNowPeerRadio* self = instance;
     if (self == nullptr || info == nullptr || data == nullptr || length < static_cast<int>(kHeaderBytes) ||
@@ -449,6 +476,11 @@ void EspNowPeerRadio::HandleFrame(const RxItem& item, int64_t now_us) {
             std::memcpy(address, item.source.data(), 6U);
             callbacks_.candidate(callbacks_.context, address, code, item.rssi);
         }
+    } else if (type == kFrameGroup) {
+        packets_received_.fetch_add(1U, std::memory_order_relaxed);
+        if (callbacks_.packet != nullptr) {
+            callbacks_.packet(callbacks_.context, item.data + kHeaderBytes, item.length - kHeaderBytes, item.rssi);
+        }
     } else if (type == kFrameData && from_peer) {
         packets_received_.fetch_add(1U, std::memory_order_relaxed);
         if (callbacks_.packet != nullptr) {
@@ -467,8 +499,12 @@ void EspNowPeerRadio::UpdateChannel(int64_t now_us) {
     // Never leave a peer heard recently, even while pairing again.
     const bool searching = !recently_heard && (paired_ || pairing_until_us_ > now_us);
     (void)xSemaphoreGive(mutex_);
+    const bool grouping = group_until_us_.load(std::memory_order_relaxed) > now_us;
     if (associated) {
         desired = ap_channel_.load(std::memory_order_relaxed);
+    } else if (grouping) {
+        // Every unjoined device meets on the rendezvous channel.
+        desired = kRendezvousChannel;
     } else if (searching && now_us >= dwell_until_us_) {
         if (on_rendezvous_) {
             desired = sweep_channel_;

@@ -43,6 +43,7 @@ class EspNowPeerRadio final : public device::PeerRadio {
     [[nodiscard]] int32_t AcceptPeer(const uint8_t (&address)[6]) override;
     [[nodiscard]] int32_t Forget() override;
     [[nodiscard]] int32_t Send(const uint8_t* data, uint32_t length) override;
+    [[nodiscard]] int32_t Broadcast(const uint8_t* data, uint32_t length) override;
 
    private:
     using Address = std::array<uint8_t, 6U>;
@@ -93,6 +94,8 @@ class EspNowPeerRadio final : public device::PeerRadio {
     int64_t dwell_until_us_{};
     uint8_t sweep_channel_{2U};
     bool on_rendezvous_{true};
+    // An App broadcast within the last few seconds: hold the group channel.
+    std::atomic<int64_t> group_until_us_{0};
     std::atomic<bool> running_{};
     std::atomic<uint32_t> packets_sent_{};
     std::atomic<uint32_t> packets_received_{};

@@ -31,6 +31,9 @@ class PeerRadio {
     [[nodiscard]] virtual int32_t AcceptPeer(const uint8_t (&address)[6]) = 0;
     [[nodiscard]] virtual int32_t Forget() = 0;
     [[nodiscard]] virtual int32_t Send(const uint8_t* data, uint32_t length) = 0;
+    // To every started device in range, paired or not; their broadcasts reach
+    // the packet callback too.
+    [[nodiscard]] virtual int32_t Broadcast(const uint8_t* data, uint32_t length) = 0;
 
    protected:
     PeerRadio() = default;

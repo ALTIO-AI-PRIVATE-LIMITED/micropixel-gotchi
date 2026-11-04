@@ -4,14 +4,15 @@
 // together. Each Gotchi shows its own 296x240 tile of an 888x720 canvas.
 //
 // Setup: on first start each Gotchi asks for its spot (1-9, row by row from
-// the top left, as seen from the front). Spot 5, the centre, leads: it
-// broadcasts its show clock over the Wi-Fi network every Gotchi has joined
-// (UDP, port 47805), and the others follow it. No frames go over the air;
+// the top left, as seen from the front). No Wi-Fi network is needed: every
+// Gotchi broadcasts its show clock five times a second over ESP-NOW (Peer
+// Radio broadcast, channel 1) and follows the reference Gotchi: spot 5 when
+// it is heard, otherwise the lowest spot heard. No frames go over the air;
 // every Gotchi draws the same scene for the same time and keeps its tile.
 //
 // Controls while playing: tap shows the spot map and the sync dot (green
-// synced, amber looking for the leader, red no Wi-Fi). Hold 1.5 s, or press
-// BOOT, to pick the spot again.
+// synced with others, amber alone, red radio unavailable). Hold 1.5 s, or
+// press BOOT, to pick the spot again.
 #include <stdint.h>
 
 #include <cstring>
@@ -26,13 +27,10 @@ namespace mp = micropixel;
 using devcon_wall::LinkStatus;
 
 constexpr char kSpotKey[] = "spot";
-constexpr uint16_t kPort = 47805U;
-constexpr uint32_t kBroadcast = 0xFFFFFFFFU;
 constexpr uint64_t kBeatIntervalUs = 200000U;
-constexpr uint64_t kLeaderTimeoutUs = 2500000U;
+constexpr uint64_t kHeardTimeoutUs = 2500000U;
 constexpr uint64_t kBadgeUs = 6000000U;
 constexpr uint64_t kHoldUs = 1500000U;
-constexpr uint64_t kStateIntervalUs = 1000000U;
 constexpr uint32_t kOffsetSamples = 20U;  // 4 s of beats.
 
 constexpr mp::Color kBackground = mp::Color::Rgb(22U, 18U, 60U);
@@ -44,10 +42,10 @@ constexpr mp::Color kChosen = mp::Color::Rgb(245U, 160U, 60U);
 
 struct Beat final {
     char magic[4];
-    uint32_t epoch;
-    uint64_t leader_us;
+    uint32_t spot;
+    uint64_t show_us;
 };
-constexpr char kMagic[4] = {'D', 'C', 'W', '1'};
+constexpr char kMagic[4] = {'D', 'C', 'W', '2'};
 
 // The tile's pixels, outside the 16 KB Guest stack.
 uint16_t frame_[devcon_wall::kTileWidth * devcon_wall::kTileHeight];
@@ -56,94 +54,96 @@ enum class Next : uint8_t { kPlay, kPick, kStop };
 
 class WallApp final {
    public:
-    explicit WallApp(mp::Application& app) : app_(app), network_(app.network()) {}
+    explicit WallApp(mp::Application& app) : app_(app), radio_(app.peer_radio()) {}
 
     int Run() {
         (void)app_.renderer().ConfigureDisplay({});
-        OpenNetwork();
+        radio_ok_ = static_cast<bool>(radio_.Start());
+        if (!radio_ok_) app_.log().Error("devcon-wall: peer radio unavailable");
         spot_ = app_.storage().GetU32Or(kSpotKey, 0U);
         Next next = spot_ >= 1U && spot_ <= 9U ? Next::kPlay : Next::kPick;
         while (next != Next::kStop) {
             next = next == Next::kPick ? Pick() : Play();
         }
+        (void)radio_.Stop();
         return 0;
     }
 
    private:
     // ---- clock sync ---------------------------------------------------------
     [[nodiscard]] uint64_t Now() const { return app_.clock().Now().microseconds(); }
-    [[nodiscard]] bool Leader() const { return spot_ == devcon_wall::kLeaderSpot; }
+    [[nodiscard]] int64_t ShowUs(uint64_t now) const { return static_cast<int64_t>(now) + offset_us_; }
 
-    void OpenNetwork() {
-        epoch_ = static_cast<uint32_t>(Now() ^ 0x9E3779B9U) | 1U;
-        OpenSocket();
-    }
-
-    // Fails until Wi-Fi is up; Tick() retries once a second.
-    void OpenSocket() {
-        if (have_udp_) return;
-        if (auto socket = network_.OpenUdp(kPort)) {
-            udp_ = *socket;
-            have_udp_ = true;
-            app_.log().Info("devcon-wall: UDP open");
+    // The Gotchi this one follows: spot 5 if heard, else the lowest spot
+    // heard, else itself (0).
+    [[nodiscard]] uint32_t Reference(uint64_t now) const {
+        uint32_t best = 0U;
+        for (uint32_t spot = 1U; spot <= 9U; ++spot) {
+            if (spot == spot_ || heard_us_[spot] == 0U || now - heard_us_[spot] >= kHeardTimeoutUs) continue;
+            if (spot == devcon_wall::kLeaderSpot) return spot;
+            if (best == 0U) best = spot;
         }
+        if (spot_ == devcon_wall::kLeaderSpot || (best != 0U && spot_ < best)) return 0U;
+        return best;
     }
 
     void Drain() {
-        if (!have_udp_) return;
+        if (!radio_ok_) return;
+        uint8_t data[mp::PeerRadio::kMaxPayload];
         for (;;) {
+            const auto packet = radio_.Receive(data);
+            if (!packet || packet->length == 0U) return;
             Beat beat{};
-            auto received = network_.Receive(udp_, &beat, sizeof(beat));
-            if (!received || received->length == 0U) return;
-            if (received->length != sizeof(beat) || std::memcmp(beat.magic, kMagic, sizeof(kMagic)) != 0 ||
-                Leader()) {
+            if (packet->length != sizeof(beat)) continue;
+            std::memcpy(&beat, data, sizeof(beat));
+            if (std::memcmp(beat.magic, kMagic, sizeof(kMagic)) != 0 || beat.spot < 1U || beat.spot > 9U ||
+                beat.spot == spot_) {
                 continue;
             }
             const uint64_t now = Now();
-            if (beat.epoch != leader_epoch_) {
-                leader_epoch_ = beat.epoch;
+            heard_us_[beat.spot] = now;
+            const uint32_t reference = Reference(now);
+            if (reference != beat.spot) continue;
+            if (reference != reference_) {
+                reference_ = reference;
                 sample_count_ = 0U;
             }
             // Delivery only ever adds delay, so the largest offset in the
-            // window is the closest to the leader's real clock.
-            samples_[sample_next_] = static_cast<int64_t>(beat.leader_us) - static_cast<int64_t>(now);
+            // window is the closest to the reference clock.
+            samples_[sample_next_] = static_cast<int64_t>(beat.show_us) - static_cast<int64_t>(now);
             sample_next_ = (sample_next_ + 1U) % kOffsetSamples;
             if (sample_count_ < kOffsetSamples) ++sample_count_;
             int64_t best = samples_[(sample_next_ + kOffsetSamples - 1U) % kOffsetSamples];
             for (uint32_t i = 0; i < sample_count_; ++i) {
-                const int64_t s = samples_[(sample_next_ + kOffsetSamples - 1U - i) % kOffsetSamples];
-                if (s > best) best = s;
+                const int64_t v = samples_[(sample_next_ + kOffsetSamples - 1U - i) % kOffsetSamples];
+                if (v > best) best = v;
             }
             offset_us_ = best;
-            heard_us_ = now;
         }
     }
 
     void Tick(uint64_t now) {
-        if (now >= next_state_us_) {
-            next_state_us_ = now + kStateIntervalUs;
-            const auto state = network_.State();
-            connected_ = state && state->station_connected;
-            if (connected_) OpenSocket();
-        }
-        if (Leader() && have_udp_ && connected_ && now >= next_beat_us_) {
-            next_beat_us_ = now + kBeatIntervalUs;
-            Beat beat{};
-            std::memcpy(beat.magic, kMagic, sizeof(kMagic));
-            beat.epoch = epoch_;
-            beat.leader_us = now;
-            (void)network_.SendTo(udp_, &beat, sizeof(beat), kBroadcast, kPort);
-        }
+        if (!radio_ok_ || spot_ < 1U || now < next_beat_us_) return;
+        next_beat_us_ = now + kBeatIntervalUs;
+        if (Reference(now) == 0U) reference_ = 0U;  // Leading: keep the current clock.
+        Beat beat{};
+        std::memcpy(beat.magic, kMagic, sizeof(kMagic));
+        beat.spot = spot_;
+        beat.show_us = static_cast<uint64_t>(ShowUs(now));
+        (void)radio_.Broadcast(&beat, sizeof(beat));
     }
 
     [[nodiscard]] LinkStatus Status(uint64_t now) const {
-        if (!connected_) return LinkStatus::kOffline;
-        if (Leader()) return LinkStatus::kSynced;
-        return heard_us_ != 0U && now - heard_us_ < kLeaderTimeoutUs ? LinkStatus::kSynced : LinkStatus::kSearching;
+        if (!radio_ok_) return LinkStatus::kOffline;
+        for (uint32_t spot = 1U; spot <= 9U; ++spot) {
+            if (spot != spot_ && heard_us_[spot] != 0U && now - heard_us_[spot] < kHeardTimeoutUs)
+                return LinkStatus::kSynced;
+        }
+        return LinkStatus::kSearching;
     }
 
     [[nodiscard]] uint32_t ShowMs(uint64_t now) const {
-        const int64_t show_us = static_cast<int64_t>(now) + (Leader() ? 0 : offset_us_);
+        const int64_t show_us = ShowUs(now);
         return static_cast<uint32_t>(static_cast<uint64_t>(show_us < 0 ? 0 : show_us) / 1000U %
                                      devcon_wall::kLoopMs);
     }
@@ -189,8 +189,8 @@ class WallApp final {
             mp::Event event;
             if (app_.WaitEventFor(event, mp::Duration::Milliseconds(200U))) {
                 if (event.type() == mp::EventType::kStop) return Next::kStop;
-                if (const auto* network = event.network();
-                    network != nullptr && network->kind() == mp::NetworkEventKind::kReady) {
+                if (const auto* peer = event.peer_radio();
+                    peer != nullptr && peer->kind() == mp::PeerRadioEventKind::kPacket) {
                     Drain();
                 } else if (const auto* touch = event.touch()) {
                     for (int32_t i = 0; i < 9; ++i) {
@@ -222,8 +222,8 @@ class WallApp final {
         spot_ = static_cast<uint32_t>(index) + 1U;
         (void)app_.storage().SetU32(kSpotKey, spot_);
         sample_count_ = 0U;
-        heard_us_ = 0U;
-        app_.log().Info(Leader() ? "devcon-wall: spot 5, leading" : "devcon-wall: spot chosen, following");
+        for (auto& heard : heard_us_) heard = 0U;
+        app_.log().Info("devcon-wall: spot chosen");
         return Next::kPlay;
     }
 
@@ -293,8 +293,8 @@ class WallApp final {
         } while (value != 0U && count < sizeof(digits));
         while (count > 0U) line[length++] = digits[--count];
         const char* status = Status(now) == LinkStatus::kSynced
-                                 ? " synced"
-                                 : (Status(now) == LinkStatus::kSearching ? " searching" : " offline");
+                                 ? (Reference(now) == 0U ? " leading" : " following")
+                                 : (Status(now) == LinkStatus::kSearching ? " alone" : " no-radio");
         for (const char* c = status; *c != '\0' && length + 1U < sizeof(line); ++c) line[length++] = *c;
         const uint32_t frames = frames_ == 0U ? 1U : frames_;
         const uint32_t parts[2] = {static_cast<uint32_t>(render_us_ / frames / 1000U),
@@ -321,8 +321,8 @@ class WallApp final {
 
     Next Handle(const mp::Event& event) {
         if (event.type() == mp::EventType::kStop) return Next::kStop;
-        if (const auto* network = event.network()) {
-            if (network->kind() == mp::NetworkEventKind::kReady) Drain();
+        if (const auto* peer = event.peer_radio()) {
+            if (peer->kind() == mp::PeerRadioEventKind::kPacket) Drain();
         } else if (const auto* touch = event.touch()) {
             if (touch->phase() == mp::TouchPhase::kDown) {
                 touching_ = true;
@@ -338,20 +338,16 @@ class WallApp final {
     }
 
     mp::Application& app_;
-    mp::Network network_;
+    mp::PeerRadio radio_;
+    bool radio_ok_{};
     uint32_t spot_{};
-    uint32_t udp_{};
-    bool have_udp_{};
-    bool connected_{};
-    uint32_t epoch_{};
-    uint32_t leader_epoch_{};
+    uint32_t reference_{};
+    uint64_t heard_us_[10]{};
     int64_t samples_[kOffsetSamples]{};
     uint32_t sample_next_{};
     uint32_t sample_count_{};
     int64_t offset_us_{};
-    uint64_t heard_us_{};
     uint64_t next_beat_us_{};
-    uint64_t next_state_us_{};
     uint64_t badge_until_us_{};
     uint64_t touch_down_us_{};
     bool touching_{};

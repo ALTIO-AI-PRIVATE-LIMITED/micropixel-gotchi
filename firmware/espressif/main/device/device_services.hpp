@@ -151,6 +151,7 @@ class PeerRadioService final {
     [[nodiscard]] DeviceResult<void> AcceptPeer(const uint8_t (&address)[6]) const;
     [[nodiscard]] DeviceResult<void> Forget() const;
     [[nodiscard]] DeviceResult<void> Send(const uint8_t* data, uint32_t length) const;
+    [[nodiscard]] DeviceResult<void> Broadcast(const uint8_t* data, uint32_t length) const;
 
    private:
     PeerRadio& implementation_;

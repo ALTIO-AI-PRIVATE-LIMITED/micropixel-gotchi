@@ -334,6 +334,9 @@ class GuestContext final {
     [[nodiscard]] ServiceResult<void> PeerRadioSend(const uint8_t* data, uint32_t length) {
         return peer_radio_.Send(data, length);
     }
+    [[nodiscard]] ServiceResult<void> PeerRadioBroadcast(const uint8_t* data, uint32_t length) {
+        return peer_radio_.Broadcast(data, length);
+    }
     [[nodiscard]] ServiceResult<micropixel_peer_radio_receive_response_t> PeerRadioReceive(uint8_t* payload_out,
                                                                                             uint32_t capacity) {
         return peer_radio_.Receive(payload_out, capacity);

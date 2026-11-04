@@ -57,6 +57,11 @@ class PeerRadio final {
     [[nodiscard]] Result<void> Forget() const;
     // kNotFound when nothing is paired; kRateLimited when the radio is busy.
     [[nodiscard]] Result<void> Send(const void* data, uint32_t length) const;
+    // To every Started device in range, paired or not (Peer Radio 1.1). Their
+    // broadcasts arrive through Receive() like paired packets. While not
+    // joined to Wi-Fi the radio then stays on channel 1, so devices meet.
+    // kUnsupported on older Hosts.
+    [[nodiscard]] Result<void> Broadcast(const void* data, uint32_t length) const;
     // Copies the oldest packet into `data` (kMaxPayload bytes); length 0 when
     // the queue is empty.
     [[nodiscard]] Result<PeerPacket> Receive(uint8_t (&data)[kMaxPayload]) const;

@@ -1100,6 +1100,19 @@ Result<void> PeerRadio::Send(const void* data, uint32_t length) const {
     return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_SEND, request, sizeof(header) + length);
 }
 
+Result<void> PeerRadio::Broadcast(const void* data, uint32_t length) const {
+    if (data == nullptr || length == 0U || length > kMaxPayload) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    alignas(4) uint8_t request[sizeof(micropixel_peer_radio_send_request_t) + kMaxPayload];
+    micropixel_peer_radio_send_request_t header{};
+    header.size = sizeof(header);
+    header.length = static_cast<uint16_t>(length);
+    CopyBytes(request, &header, sizeof(header));
+    CopyBytes(request + sizeof(header), data, length);
+    return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_BROADCAST, request, sizeof(header) + length);
+}
+
 Result<PeerPacket> PeerRadio::Receive(uint8_t (&data)[kMaxPayload]) const {
     int32_t status = OpenPeerRadioService();
     if (status != MICROPIXEL_STATUS_OK) {

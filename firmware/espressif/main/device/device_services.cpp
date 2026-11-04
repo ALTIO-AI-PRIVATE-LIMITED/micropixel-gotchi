@@ -198,6 +198,10 @@ DeviceResult<void> PeerRadioService::Send(const uint8_t* data, uint32_t length) 
     return StatusResult(implementation_.Send(data, length));
 }
 
+DeviceResult<void> PeerRadioService::Broadcast(const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.Broadcast(data, length));
+}
+
 DeviceResult<micropixel_power_info_t> PowerInfoService::Get(micropixel_device_id_t device) {
     micropixel_device_info_t device_info{};
     const int32_t device_status = devices_.GetById(device, device_info);
