@@ -3,6 +3,7 @@
 
 #include "platform/boards/cheeko-gotchi/battery_peripheral.hpp"
 
+#include <algorithm>
 #include <array>
 
 #include "esp_adc/adc_cali_scheme.h"
@@ -20,7 +21,7 @@ constexpr uint32_t kDividerRatio = 2U;
 constexpr uint32_t kSampleCount = 16U;
 constexpr uint64_t kRefreshIntervalUs = 3ULL * 1000ULL * 1000ULL;
 // A pack reading outside this window is a floating pin or no cell.
-constexpr uint32_t kMinimumPackMillivolts = 3000U;
+constexpr uint32_t kMinimumPackMillivolts = 2500U;
 constexpr uint32_t kMaximumPackMillivolts = 4500U;
 
 struct CurvePoint final {
@@ -125,9 +126,9 @@ void BatteryPeripheral::Probe() {
             const uint32_t pack = sense * kDividerRatio;
             ESP_LOGI(kTag, "probe GPIO%d: raw=%d sense=%umV pack=%umV (%s)", static_cast<int>(pin), last_raw_, sense,
                      pack, esp_err_to_name(read));
-            if (read == ESP_OK && pack >= kMinimumPackMillivolts && pack <= kMaximumPackMillivolts) {
+            if (read == ESP_OK) {
                 sense_pin_ = pin;
-                filtered_millivolts_ = pack;
+                filtered_millivolts_ = (pack >= kMinimumPackMillivolts && pack <= kMaximumPackMillivolts) ? pack : 0U;
                 break;
             }
         }
@@ -150,16 +151,23 @@ esp_err_t BatteryPeripheral::ReadSenseMillivolts(uint32_t& millivolts) {
     if (unit_ == nullptr || calibration_ == nullptr) {
         return ESP_ERR_INVALID_STATE;
     }
-    uint32_t total = 0U;
+    // Wi-Fi shares ADC2 and knocks single conversions off, so the median of a
+    // burst is used rather than the mean.
+    std::array<uint32_t, kSampleCount> values{};
     for (uint32_t i = 0; i < kSampleCount; ++i) {
         int raw = 0;
         int value = 0;
         ESP_RETURN_ON_ERROR(adc_oneshot_read(unit_, channel_, &raw), kTag, "read battery sense failed");
         ESP_RETURN_ON_ERROR(adc_cali_raw_to_voltage(calibration_, raw, &value), kTag, "convert battery sense failed");
-        total += static_cast<uint32_t>(value < 0 ? 0 : value);
+        values[i] = static_cast<uint32_t>(value < 0 ? 0 : value);
         last_raw_ = raw;
     }
-    millivolts = total / kSampleCount;
+    std::sort(values.begin(), values.end());
+    millivolts = values[kSampleCount / 2U];
+    if (debug_samples_ < 20U) {
+        ++debug_samples_;
+        ESP_LOGI(kTag, "sense min=%u median=%u max=%u mV", values.front(), millivolts, values.back());
+    }
     return ESP_OK;
 }
 
@@ -192,7 +200,7 @@ device::BatterySnapshot BatteryPeripheral::Sample() {
         const uint32_t pack = sense * kDividerRatio;
         if (pack >= kMinimumPackMillivolts && pack <= kMaximumPackMillivolts) {
             // A slow average keeps the level from jumping with speaker load.
-            filtered_millivolts_ = (filtered_millivolts_ * 3U + pack) / 4U;
+            filtered_millivolts_ = filtered_millivolts_ == 0U ? pack : (filtered_millivolts_ * 3U + pack) / 4U;
             last_snapshot_.percent = PercentFromPack(filtered_millivolts_);
             last_snapshot_.available = true;
         }

@@ -49,6 +49,7 @@ class BatteryPeripheral final : public device::Battery {
     esp_timer_handle_t refresh_timer_{};
     bool probed_{};
     int last_raw_{};
+    uint32_t debug_samples_{};
     std::atomic<device::BatteryStateChangeSink> state_change_sink_{};
     std::atomic<void*> state_change_context_{};
 };
