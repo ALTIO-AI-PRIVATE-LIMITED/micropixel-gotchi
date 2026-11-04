@@ -3,7 +3,6 @@
   "app_id": "cheeko.devcon-wall",
   "version": "0.1.0",
   "threading": "none",
-  "pinned_memory": true,
   "title": "DevCon Wall",
   "sources": [
     "src/main.cpp",

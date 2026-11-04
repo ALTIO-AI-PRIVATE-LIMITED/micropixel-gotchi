@@ -110,6 +110,8 @@ Rgb Lerp(Rgb a, Rgb b, float t) {
 // Sine table, 1024 steps per turn.
 constexpr int32_t kSineSteps = 1024;
 float g_sine[kSineSteps];
+// Integer sine, Q14, same steps.
+int16_t g_sine_q14[kSineSteps];
 bool g_sine_ready = false;
 void EnsureSine() {
     if (g_sine_ready) return;
@@ -120,6 +122,7 @@ void EnsureSine() {
     double sn = 0.0;
     for (int32_t i = 0; i < kSineSteps; ++i) {
         g_sine[i] = static_cast<float>(sn);
+        g_sine_q14[i] = static_cast<int16_t>(sn * 16383.0);
         const double next_c = c * kStepCos - sn * kStepSin;
         sn = sn * kStepCos + c * kStepSin;
         c = next_c;
@@ -132,42 +135,60 @@ inline float Sin(float radians) {
 }
 inline float Cos(float radians) { return Sin(radians + kPi * 0.5F); }
 
+// A tile seen as canvas coordinates. With `shift` 1 it is a half-resolution
+// buffer (148x120): loops walk the canvas in steps of 2 and At() maps each
+// step to one buffer pixel. The background layers render that way, then get
+// doubled; the logo and text render at full resolution.
 class Frame final {
    public:
-    Frame(const Tile& tile, uint16_t* pixels, int32_t pitch)
-        : x0_(tile.origin_x), y0_(tile.origin_y), pixels_(pixels), pitch_(pitch) {}
+    Frame(const Tile& tile, uint16_t* pixels, int32_t pitch, int32_t shift)
+        : x0_(tile.origin_x), y0_(tile.origin_y), pixels_(pixels), pitch_(pitch), shift_(shift) {}
 
     [[nodiscard]] bool Inside(int32_t x, int32_t y) const {
         return x >= x0_ && y >= y0_ && x < x0_ + kTileWidth && y < y0_ + kTileHeight;
     }
-    uint16_t& At(int32_t x, int32_t y) { return pixels_[(y - y0_) * pitch_ + (x - x0_)]; }
-    // Clip a canvas span to this tile; false when nothing is left.
+    uint16_t& At(int32_t x, int32_t y) { return pixels_[((y - y0_) >> shift_) * pitch_ + ((x - x0_) >> shift_)]; }
+    // Clip a canvas span to this tile and snap its start to the sample grid;
+    // false when nothing is left.
     bool ClipRows(int32_t& top, int32_t& bottom) const {
         if (top < y0_) top = y0_;
         if (bottom > y0_ + kTileHeight) bottom = y0_ + kTileHeight;
+        top = Snap(top, y0_);
         return top < bottom;
     }
     bool ClipColumns(int32_t& left, int32_t& right) const {
         if (left < x0_) left = x0_;
         if (right > x0_ + kTileWidth) right = x0_ + kTileWidth;
+        left = Snap(left, x0_);
         return left < right;
     }
     void Dot(int32_t x, int32_t y, int32_t size, Rgb c, int32_t alpha) {
+        size = size >> shift_ > 0 ? size >> shift_ : 1;
+        const int32_t step = Step();
         for (int32_t dy = 0; dy < size; ++dy)
-            for (int32_t dx = 0; dx < size; ++dx)
-                if (Inside(x + dx, y + dy)) Add(At(x + dx, y + dy), c, alpha);
+            for (int32_t dx = 0; dx < size; ++dx) {
+                const int32_t px = x + dx * step;
+                const int32_t py = y + dy * step;
+                if (Inside(px, py)) Add(At(px, py), c, alpha);
+            }
     }
     [[nodiscard]] int32_t x0() const { return x0_; }
     [[nodiscard]] int32_t y0() const { return y0_; }
+    [[nodiscard]] int32_t Step() const { return 1 << shift_; }
 
    private:
+    [[nodiscard]] int32_t Snap(int32_t v, int32_t origin) const {
+        const int32_t mask = Step() - 1;
+        return origin + (((v - origin) + mask) & ~mask);
+    }
     int32_t x0_, y0_;
     uint16_t* pixels_;
     int32_t pitch_;
+    int32_t shift_;
 };
 
 void DrawSky(Frame& f) {
-    for (int32_t y = f.y0(); y < f.y0() + kTileHeight; ++y) {
+    for (int32_t y = f.y0(); y < f.y0() + kTileHeight; y += f.Step()) {
         const float v = static_cast<float>(y) / kCanvasHeight;
         Rgb c;
         if (v < 0.38F) {
@@ -181,11 +202,12 @@ void DrawSky(Frame& f) {
         constexpr int32_t kBayer[4][4] = {{0, 8, 2, 10}, {12, 4, 14, 6}, {3, 11, 1, 9}, {15, 7, 13, 5}};
         uint16_t packed[4];
         for (int32_t i = 0; i < 4; ++i) {
-            const int32_t d = kBayer[y & 3][i] >> 1;
+            const int32_t d = kBayer[(y >> 1) & 3][i] >> 1;
             packed[i] = Pack(Min255(c.r + d), Min255(c.g + (d >> 1)), Min255(c.b + d));
         }
         uint16_t* row = &f.At(f.x0(), y);
-        for (int32_t x = 0; x < kTileWidth; ++x) row[x] = packed[(f.x0() + x) & 3];
+        const int32_t count = kTileWidth / f.Step();
+        for (int32_t x = 0; x < count; ++x) row[x] = packed[x & 3];
     }
 }
 
@@ -218,14 +240,21 @@ void MandalaCurve(Frame& f, float scale, float rotation, float radius, float bul
     if (kCenterX + outer < f.x0() || kCenterX - outer > f.x0() + kTileWidth || kCenterY + outer < f.y0() ||
         kCenterY - outer > f.y0() + kTileHeight)
         return;
-    const int32_t samples = static_cast<int32_t>(outer * 2.6F) + 32;
-    const float step = 2.0F * kPi / static_cast<float>(samples);
+    // Spaced so the curve reads as a dotted line, like the hero art.
+    const int32_t samples = static_cast<int32_t>(outer * 3.6F) / f.Step() + 32;
+    const int32_t base = static_cast<int32_t>(radius * scale * 16.0F);  // Q4
+    const int32_t swell = static_cast<int32_t>(bulge * scale * 16.0F);
+    const int32_t turn = static_cast<int32_t>(rotation * (kSineSteps / (2.0F * kPi)));
+    // Angle in Q16 steps of the 1024-step table.
+    const int32_t delta = (kSineSteps << 16) / samples;
     for (int32_t i = 0; i < samples; ++i) {
-        const float theta = static_cast<float>(i) * step;
-        const float wave = Sin(theta * static_cast<float>(petals) * 0.5F);
-        const float r = (radius + bulge * (wave < 0.0F ? -wave : wave)) * scale;
-        const int32_t x = kCenterX + static_cast<int32_t>(r * Cos(theta + rotation));
-        const int32_t y = kCenterY + static_cast<int32_t>(r * Sin(theta + rotation));
+        const int32_t angle = (i * delta) >> 16;
+        int32_t wave = g_sine_q14[(angle * petals / 2) & (kSineSteps - 1)];
+        if (wave < 0) wave = -wave;
+        const int32_t r = base + (swell * wave >> 14);  // Q4
+        const int32_t a = angle + turn;
+        const int32_t x = kCenterX + ((r * g_sine_q14[(a + kSineSteps / 4) & (kSineSteps - 1)]) >> 18);
+        const int32_t y = kCenterY + ((r * g_sine_q14[a & (kSineSteps - 1)]) >> 18);
         f.Dot(x, y, dot, kMandala, alpha);
     }
 }
@@ -263,30 +292,33 @@ void DrawMoon(Frame& f, float s) {
     constexpr int32_t kG2 = kMoonGlowRadius * kMoonGlowRadius;
     // Craters, relative to the centre: x, y, radius.
     constexpr int32_t kCraters[5][3] = {{-40, -30, 26}, {30, 18, 34}, {-18, 52, 18}, {48, -48, 14}, {-62, 22, 12}};
-    for (int32_t y = top; y < bottom; ++y) {
+    constexpr int32_t kLimbScale = 60 * 65536 / kR2;
+    constexpr int32_t kGlowScale = 255 * 65536 / (kG2 - kR2);
+    const int32_t step = f.Step();
+    for (int32_t y = top; y < bottom; y += step) {
         const int32_t dy = y - cy;
         const int32_t span = static_cast<int32_t>(__builtin_sqrtf(static_cast<float>(kG2 - dy * dy)));
         int32_t left = cx - span;
         int32_t right = cx + span + 1;
         if (!f.ClipColumns(left, right)) continue;
-        for (int32_t x = left; x < right; ++x) {
+        for (int32_t x = left; x < right; x += step) {
             const int32_t dx = x - cx;
             const int32_t d2 = dx * dx + dy * dy;
             uint16_t& p = f.At(x, y);
             if (d2 < kR2) {
-                const int32_t limb = d2 * 60 / kR2;
+                const int32_t limb = d2 * kLimbScale >> 16;
                 Rgb c{kMoon.r - limb, kMoon.g - limb / 2, kMoon.b - limb / 3};
                 for (const auto& crater : kCraters) {
                     const int32_t ex = dx - crater[0];
                     const int32_t ey = dy - crater[1];
                     if (ex * ex + ey * ey < crater[2] * crater[2]) {
-                        c = Lerp(c, kMoonShade, 0.45F);
+                        c = Rgb{(c.r + kMoonShade.r) >> 1, (c.g + kMoonShade.g) >> 1, (c.b + kMoonShade.b) >> 1};
                         break;
                     }
                 }
                 Blend(p, c, 255);
             } else if (d2 < kG2) {
-                const int32_t k = (kG2 - d2) * 255 / (kG2 - kR2);
+                const int32_t k = (kG2 - d2) * kGlowScale >> 16;
                 Add(p, kMoonGlow, k * k / 255 * 3 / 4);
             }
         }
@@ -298,7 +330,8 @@ void DrawCrystal(Frame& f, int32_t cx, int32_t cy, int32_t half_width, int32_t u
     int32_t top = cy - up;
     int32_t bottom = cy + down;
     if (cx + half_width < f.x0() || cx - half_width >= f.x0() + kTileWidth || !f.ClipRows(top, bottom)) return;
-    for (int32_t y = top; y < bottom; ++y) {
+    const int32_t step = f.Step();
+    for (int32_t y = top; y < bottom; y += step) {
         const bool upper = y < cy;
         const int32_t dy = upper ? cy - y : y - cy;
         const int32_t h = upper ? up : down;
@@ -308,7 +341,7 @@ void DrawCrystal(Frame& f, int32_t cx, int32_t cy, int32_t half_width, int32_t u
         if (!f.ClipColumns(left, right)) continue;
         const Rgb& lc = faces[upper ? 0 : 2];
         const Rgb& rc = faces[upper ? 1 : 3];
-        for (int32_t x = left; x < right; ++x) Blend(f.At(x, y), x < cx ? lc : rc, alpha);
+        for (int32_t x = left; x < right; x += step) Blend(f.At(x, y), x < cx ? lc : rc, alpha);
     }
 }
 
@@ -332,29 +365,37 @@ void DrawCrystals(Frame& f, float s) {
 }
 
 void DrawRing(Frame& f, float radius, int32_t alpha) {
-    constexpr float kBand = 16.0F;
-    const float outer = radius + kBand;
-    const float inner = radius > kBand ? radius - kBand : 0.0F;
-    int32_t top = kCenterY - static_cast<int32_t>(outer);
-    int32_t bottom = kCenterY + static_cast<int32_t>(outer) + 1;
+    constexpr int32_t kBand = 16;
+    const int32_t r = static_cast<int32_t>(radius);
+    const int32_t outer = r + kBand;
+    const int32_t inner = r > kBand ? r - kBand : 0;
+    int32_t top = kCenterY - outer;
+    int32_t bottom = kCenterY + outer + 1;
     if (!f.ClipRows(top, bottom)) return;
-    const float r2 = radius * radius;
-    const float band2 = outer * outer - r2;
+    const int32_t r2 = r * r;
+    const int32_t band2 = outer * outer - r2;
+    const int32_t inv = 65536 / (band2 > 0 ? band2 : 1) * 256;  // (256 << 16) / band2, roughly
     const Rgb light{200, 255, 250};
-    for (int32_t y = top; y < bottom; ++y) {
-        const float dy = static_cast<float>(y - kCenterY);
-        const float out_span = __builtin_sqrtf(outer * outer - dy * dy > 0.0F ? outer * outer - dy * dy : 0.0F);
-        const float in_span = inner * inner - dy * dy > 0.0F ? __builtin_sqrtf(inner * inner - dy * dy) : 0.0F;
+    const int32_t step = f.Step();
+    for (int32_t y = top; y < bottom; y += step) {
+        const int32_t dy = y - kCenterY;
+        const int32_t out2 = outer * outer - dy * dy;
+        if (out2 <= 0) continue;
+        const int32_t in2 = inner * inner - dy * dy;
+        const int32_t out_span = static_cast<int32_t>(__builtin_sqrtf(static_cast<float>(out2)));
+        const int32_t in_span = in2 > 0 ? static_cast<int32_t>(__builtin_sqrtf(static_cast<float>(in2))) : 0;
         // Two arcs: left and right of the hollow middle.
         for (int32_t side = -1; side <= 1; side += 2) {
-            int32_t a = kCenterX + static_cast<int32_t>(side < 0 ? -out_span : in_span);
-            int32_t b = kCenterX + static_cast<int32_t>(side < 0 ? -in_span : out_span) + 1;
+            int32_t a = kCenterX + (side < 0 ? -out_span : in_span);
+            int32_t b = kCenterX + (side < 0 ? -in_span : out_span + 1);
             if (!f.ClipColumns(a, b)) continue;
-            for (int32_t x = a; x < b; ++x) {
-                const float dx = static_cast<float>(x - kCenterX);
-                float k = 1.0F - __builtin_fabsf(dx * dx + dy * dy - r2) / band2;
-                if (k <= 0.0F) continue;
-                Add(f.At(x, y), light, static_cast<int32_t>(k * k * static_cast<float>(alpha)));
+            for (int32_t x = a; x < b; x += step) {
+                const int32_t dx = x - kCenterX;
+                int32_t diff = dx * dx + dy * dy - r2;
+                if (diff < 0) diff = -diff;
+                const int32_t k = 256 - static_cast<int32_t>((static_cast<int64_t>(diff) * inv) >> 16);
+                if (k <= 0) continue;
+                Add(f.At(x, y), light, k * k * alpha >> 16);
             }
         }
     }
@@ -374,20 +415,23 @@ void DrawPlate(Frame& f, float amount) {
     int32_t bottom = kLogoCenterY + kPlateRadiusY;
     if (!f.ClipRows(top, bottom)) return;
     const int32_t peak = static_cast<int32_t>(205.0F * amount);
-    constexpr int64_t kA2 = static_cast<int64_t>(kPlateRadiusX) * kPlateRadiusX;
-    constexpr int64_t kB2 = static_cast<int64_t>(kPlateRadiusY) * kPlateRadiusY;
-    for (int32_t y = top; y < bottom; ++y) {
-        const int64_t dy = y - kLogoCenterY;
-        const float ry = 1.0F - static_cast<float>(dy * dy) / static_cast<float>(kB2);
+    // q = 256 at the ellipse edge, 0 at its centre: dx²·kQx + dy²·kQy, >> 16.
+    constexpr int32_t kQx = (256 << 16) / (kPlateRadiusX * kPlateRadiusX);
+    constexpr int32_t kQy = (256 << 16) / (kPlateRadiusY * kPlateRadiusY);
+    const int32_t step = f.Step();
+    for (int32_t y = top; y < bottom; y += step) {
+        const int32_t dy = y - kLogoCenterY;
+        const int32_t qy = dy * dy * kQy;
+        const float ry = 1.0F - static_cast<float>(dy * dy) / static_cast<float>(kPlateRadiusY * kPlateRadiusY);
         if (ry <= 0.0F) continue;
         const int32_t span = static_cast<int32_t>(static_cast<float>(kPlateRadiusX) * __builtin_sqrtf(ry));
         int32_t left = kCenterX - span;
         int32_t right = kCenterX + span;
         if (!f.ClipColumns(left, right)) continue;
-        for (int32_t x = left; x < right; ++x) {
-            const int64_t dx = x - kCenterX;
-            const int64_t q = (dx * dx * kB2 + dy * dy * kA2) * 256 / (kA2 * kB2);  // 0 centre .. 256 edge
-            int32_t a = static_cast<int32_t>((256 - q) * 3);
+        for (int32_t x = left; x < right; x += step) {
+            const int32_t dx = x - kCenterX;
+            const int32_t q = (dx * dx * kQx + qy) >> 16;
+            int32_t a = (256 - q) * 3;
             if (a > 256) a = 256;
             Blend(f.At(x, y), kPlate, peak * a >> 8);
         }
@@ -398,8 +442,8 @@ void DrawPlate(Frame& f, float amount) {
 // gates each pixel; `shimmer(x, y)` returns 0..255 extra light.
 template <typename Visible, typename Shimmer>
 void DrawImage(Frame& f, int32_t ox, int32_t oy, int32_t width, int32_t height, const uint16_t* colors,
-               const uint8_t* alphas, const uint32_t* offsets, const uint8_t* runs, int32_t fade, Visible visible,
-               Shimmer shimmer) {
+               const uint8_t* alphas, const uint32_t* offsets, const uint8_t* runs, int32_t fade, bool plain,
+               Visible visible, Shimmer shimmer) {
     int32_t top = oy;
     int32_t bottom = oy + height;
     if (ox + width < f.x0() || ox >= f.x0() + kTileWidth || !f.ClipRows(top, bottom)) return;
@@ -416,6 +460,12 @@ void DrawImage(Frame& f, int32_t ox, int32_t oy, int32_t width, int32_t height, 
                 if (f.ClipColumns(a, b)) {
                     const Rgb c = Unpack(colors[index]);
                     const int32_t alpha = alphas[index] * fade >> 8;
+                    if (plain && alpha >= 255) {
+                        uint16_t* p = &f.At(a, y);
+                        for (int32_t n = b - a; n > 0; --n) *p++ = colors[index];
+                        x += length;
+                        continue;
+                    }
                     for (int32_t px = a; px < b; ++px) {
                         if (!visible(px, y)) continue;
                         uint16_t& p = f.At(px, y);
@@ -441,7 +491,7 @@ void DrawLogo(Frame& f, float s) {
     const int32_t band = static_cast<int32_t>(sweep * static_cast<float>(kCanvasWidth + kCanvasHeight + 300)) - 150;
     DrawImage(
         f, kLogoX, kLogoY, brand::kLogoWidth, brand::kLogoHeight, brand::kLogoColor, brand::kLogoAlpha,
-        brand::kLogoRowOffset, brand::kLogoRuns, 256,
+        brand::kLogoRowOffset, brand::kLogoRuns, 256, full && !shimmering,
         [&](int32_t x, int32_t y) {
             if (full) return true;
             const int32_t dx = x - kCenterX;
@@ -462,7 +512,7 @@ void DrawTagline(Frame& f, float s) {
     const int32_t edge = kTaglineX + static_cast<int32_t>(wipe * static_cast<float>(brand::kTaglineWidth + 40));
     DrawImage(
         f, kTaglineX, kTaglineY, brand::kTaglineWidth, brand::kTaglineHeight, brand::kTaglineColor,
-        brand::kTaglineAlpha, brand::kTaglineRowOffset, brand::kTaglineRuns, 256,
+        brand::kTaglineAlpha, brand::kTaglineRowOffset, brand::kTaglineRuns, 256, false,
         [&](int32_t x, int32_t) { return x < edge; },
         [&](int32_t x, int32_t) {
             const int32_t d = edge - x;
@@ -492,16 +542,33 @@ void FillRect(uint16_t* pixels, int32_t pitch, int32_t x, int32_t y, int32_t w, 
 void RenderTile(const Tile& tile, uint32_t time_ms, uint16_t* pixels, int32_t pitch_pixels) {
     EnsureSine();
     const float s = static_cast<float>(time_ms % kLoopMs) / 1000.0F;
-    Frame f(tile, pixels, pitch_pixels);
-    DrawSky(f);
-    DrawStars(f, s);
-    DrawMandala(f, s);
-    DrawMoon(f, s);
-    DrawCrystals(f, s);
-    DrawRipples(f, s);
-    DrawPlate(f, Smooth(11.0F, 12.5F, s));
-    DrawLogo(f, s);
-    DrawTagline(f, s);
+    // Background at half resolution: a quarter of the pixel work.
+    constexpr int32_t kHalfWidth = kTileWidth / 2;
+    constexpr int32_t kHalfHeight = kTileHeight / 2;
+    static uint16_t half[kHalfWidth * kHalfHeight];
+    Frame back(tile, half, kHalfWidth, 1);
+    DrawSky(back);
+    DrawStars(back, s);
+    DrawMandala(back, s);
+    DrawMoon(back, s);
+    DrawCrystals(back, s);
+    DrawRipples(back, s);
+    DrawPlate(back, Smooth(11.0F, 12.5F, s));
+    for (int32_t y = 0; y < kHalfHeight; ++y) {
+        const uint16_t* src = half + y * kHalfWidth;
+        uint16_t* a = pixels + (2 * y) * pitch_pixels;
+        uint16_t* b = a + pitch_pixels;
+        for (int32_t x = 0; x < kHalfWidth; ++x) {
+            const uint16_t c = src[x];
+            a[2 * x] = c;
+            a[2 * x + 1] = c;
+            b[2 * x] = c;
+            b[2 * x + 1] = c;
+        }
+    }
+    Frame front(tile, pixels, pitch_pixels, 0);
+    DrawLogo(front, s);
+    DrawTagline(front, s);
     Dim(pixels, pitch_pixels, Smooth(0.0F, 2.5F, s) * (1.0F - Smooth(30.0F, 32.0F, s)));
 }
 

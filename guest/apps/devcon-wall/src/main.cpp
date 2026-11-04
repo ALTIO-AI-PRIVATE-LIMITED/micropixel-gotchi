@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include <cstring>
+#include <span>
 
 #include "sdk/micropixel.hpp"
 #include "wall_render.hpp"
@@ -48,6 +49,9 @@ struct Beat final {
 };
 constexpr char kMagic[4] = {'D', 'C', 'W', '1'};
 
+// The tile's pixels, outside the 16 KB Guest stack.
+uint16_t frame_[devcon_wall::kTileWidth * devcon_wall::kTileHeight];
+
 enum class Next : uint8_t { kPlay, kPick, kStop };
 
 class WallApp final {
@@ -71,13 +75,18 @@ class WallApp final {
     [[nodiscard]] bool Leader() const { return spot_ == devcon_wall::kLeaderSpot; }
 
     void OpenNetwork() {
+        epoch_ = static_cast<uint32_t>(Now() ^ 0x9E3779B9U) | 1U;
+        OpenSocket();
+    }
+
+    // Fails until Wi-Fi is up; Tick() retries once a second.
+    void OpenSocket() {
+        if (have_udp_) return;
         if (auto socket = network_.OpenUdp(kPort)) {
             udp_ = *socket;
             have_udp_ = true;
-        } else {
-            app_.log().Error("devcon-wall: UDP port unavailable");
+            app_.log().Info("devcon-wall: UDP open");
         }
-        epoch_ = static_cast<uint32_t>(Now() ^ 0x9E3779B9U) | 1U;
     }
 
     void Drain() {
@@ -115,6 +124,7 @@ class WallApp final {
             next_state_us_ = now + kStateIntervalUs;
             const auto state = network_.State();
             connected_ = state && state->station_connected;
+            if (connected_) OpenSocket();
         }
         if (Leader() && have_udp_ && connected_ && now >= next_beat_us_) {
             next_beat_us_ = now + kBeatIntervalUs;
@@ -217,21 +227,28 @@ class WallApp final {
         return Next::kPlay;
     }
 
-    // ---- wall playback (GuestSurface) ---------------------------------------
+    // ---- wall playback (dynamic texture in a Scene) --------------------------
+    // A full-screen RGB565 texture updated every frame. Unlike a GuestSurface
+    // this needs no pinned linear memory, which the Gotchi cannot spare with
+    // Wi-Fi up.
     Next Play() {
-        auto created = app_.renderer().CreateGuestSurface(2U, 1U);
-        if (!created) {
-            app_.log().Error("devcon-wall: no GuestSurface (pinned_memory?)");
+        auto created = app_.renderer().CreateScene(mp::Color::Black());
+        if (!created) return Next::kStop;
+        mp::Scene scene = std::move(*created);
+        constexpr uint32_t kPitchBytes = devcon_wall::kTileWidth * 2U;
+        const std::span<const uint8_t> bytes(reinterpret_cast<const uint8_t*>(frame_), sizeof(frame_));
+        auto texture = app_.resources().CreateDynamicTexture(
+            {devcon_wall::kTileWidth, devcon_wall::kTileHeight}, mp::PixelFormat::kRgb565, bytes, kPitchBytes);
+        if (!texture) {
+            app_.log().Error("devcon-wall: dynamic texture unavailable");
             return Next::kStop;
         }
-        mp::GuestSurface surface = std::move(*created);
-        const int32_t pitch = static_cast<int32_t>(surface.buffer_width());
-        const int32_t height = static_cast<int32_t>(surface.buffer_height());
-        const bool swap = surface.rgb565_byte_swapped();
-        const devcon_wall::Tile tile = devcon_wall::TileForSpot(spot_);
-        for (uint32_t b = 0; b < surface.buffer_count(); ++b) {
-            if (uint16_t* pixels = surface.Buffer(b)) std::memset(pixels, 0, surface.buffer_bytes());
+        const mp::Rect full{0, 0, devcon_wall::kTileWidth, devcon_wall::kTileHeight};
+        if (!scene.CreateSprite(*texture, full, full)) {
+            app_.log().Error("devcon-wall: sprite unavailable");
+            return Next::kStop;
         }
+        const devcon_wall::Tile tile = devcon_wall::TileForSpot(spot_);
         badge_until_us_ = Now() + kBadgeUs;
         touching_ = false;
         frames_ = 0U;
@@ -240,11 +257,6 @@ class WallApp final {
         while (next == Next::kPlay) {
             mp::Event event;
             while (next == Next::kPlay && app_.PollEvent(event)) next = Handle(event);
-            uint32_t index = 0U;
-            while (next == Next::kPlay && !surface.AcquireFree(index)) {
-                if (app_.WaitEventFor(event, mp::Duration::Milliseconds(50U))) next = Handle(event);
-                Tick(Now());
-            }
             if (next != Next::kPlay) break;
             const uint64_t now = Now();
             Tick(now);
@@ -252,34 +264,25 @@ class WallApp final {
                 next = Next::kPick;
                 break;
             }
-            uint16_t* pixels = surface.Buffer(index);
-            if (pixels == nullptr) break;
-            if (pitch >= devcon_wall::kTileWidth && height >= devcon_wall::kTileHeight) {
-                devcon_wall::RenderTile(tile, ShowMs(now), pixels, pitch);
-                if (now < badge_until_us_) devcon_wall::RenderBadge(spot_, Status(now), pixels, pitch);
+            devcon_wall::RenderTile(tile, ShowMs(now), frame_, devcon_wall::kTileWidth);
+            const uint64_t rendered = Now();
+            render_us_ += rendered - now;
+            if (now < badge_until_us_) devcon_wall::RenderBadge(spot_, Status(now), frame_, devcon_wall::kTileWidth);
+            if (!texture->Update(full, bytes, kPitchBytes) || !app_.renderer().Present(scene)) {
+                // Host busy with the previous frame: give it a moment.
+                if (app_.WaitEventFor(event, mp::Duration::Milliseconds(5U))) next = Handle(event);
+                continue;
             }
-            if (swap) {
-                const uint32_t count = surface.buffer_bytes() / 2U;
-                for (uint32_t i = 0; i < count; ++i) {
-                    pixels[i] = static_cast<uint16_t>((pixels[i] << 8U) | (pixels[i] >> 8U));
-                }
-            }
+            present_us_ += Now() - rendered;
             ++frames_;
-            if (now - stats_since_us_ >= 10000000U) {
-                LogFps(now);
-            }
-            if (!surface.Present(index)) {
-                app_.log().Error("devcon-wall: present rejected");
-                next = Next::kStop;
-            }
+            if (now - stats_since_us_ >= 10000000U) LogFps(now);
         }
-        surface.Reset();
         return next;
     }
 
     void LogFps(uint64_t now) {
         // "fps x10" and the sync state, every 10 s, for tuning on hardware.
-        char line[64] = "devcon-wall: fps10=";
+        char line[96] = "devcon-wall: fps10=";
         uint32_t length = 19U;
         uint32_t value = static_cast<uint32_t>(static_cast<uint64_t>(frames_) * 10000000U / (now - stats_since_us_));
         char digits[10];
@@ -293,7 +296,24 @@ class WallApp final {
                                  ? " synced"
                                  : (Status(now) == LinkStatus::kSearching ? " searching" : " offline");
         for (const char* c = status; *c != '\0' && length + 1U < sizeof(line); ++c) line[length++] = *c;
+        const uint32_t frames = frames_ == 0U ? 1U : frames_;
+        const uint32_t parts[2] = {static_cast<uint32_t>(render_us_ / frames / 1000U),
+                                   static_cast<uint32_t>(present_us_ / frames / 1000U)};
+        const char* labels[2] = {" render_ms=", " present_ms="};
+        for (uint32_t part = 0; part < 2U; ++part) {
+            for (const char* c = labels[part]; *c != '\0' && length + 1U < sizeof(line); ++c) line[length++] = *c;
+            uint32_t v = parts[part];
+            char d[10];
+            uint32_t n = 0U;
+            do {
+                d[n++] = static_cast<char>('0' + v % 10U);
+                v /= 10U;
+            } while (v != 0U && n < sizeof(d));
+            while (n > 0U && length + 1U < sizeof(line)) line[length++] = d[--n];
+        }
         line[length] = '\0';
+        render_us_ = 0U;
+        present_us_ = 0U;
         app_.log().Info(line);
         frames_ = 0U;
         stats_since_us_ = now;
@@ -336,6 +356,8 @@ class WallApp final {
     uint64_t touch_down_us_{};
     bool touching_{};
     uint32_t frames_{};
+    uint64_t render_us_{};
+    uint64_t present_us_{};
     uint64_t stats_since_us_{};
 };
 
