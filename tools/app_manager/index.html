@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gotchi App Manager</title>
+<style>
+  :root { --bg:#f6f6f3; --card:#fff; --text:#1d1d1b; --muted:#6b6b66; --line:#e3e3de;
+          --accent:#2f6fde; --ok:#1f8a4c; --bad:#c23b2b; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141413; --card:#1f1f1d; --text:#ecece8; --muted:#9a9a94; --line:#33332f;
+            --accent:#6b9cff; --ok:#4cc47d; --bad:#ff6f5e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.4 -apple-system, system-ui, sans-serif; }
+  header { padding:20px 16px 8px; max-width:1100px; margin:auto; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+  h1 { font-size:22px; margin:0; }
+  .status { font-size:13px; color:var(--muted); }
+  .status b.on { color:var(--ok); } .status b.off { color:var(--bad); }
+  .bar { max-width:1100px; margin:auto; padding:8px 16px; display:flex; flex-wrap:wrap; gap:8px; }
+  input, select, button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:8px; padding:7px 11px; }
+  input[type=search] { flex:1; min-width:180px; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.danger { color:var(--bad); }
+  button:disabled { opacity:.5; cursor:default; }
+  .store { max-width:1100px; margin:4px auto 0; padding:0 16px; font-size:13px; color:var(--muted); }
+  .meter { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:4px; max-width:320px; }
+  .meter div { height:100%; background:var(--accent); }
+  main { max-width:1100px; margin:auto; padding:12px 16px 40px; display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:6px; }
+  .card h3 { margin:0; font-size:16px; }
+  .meta { font-size:12px; color:var(--muted); word-break:break-all; }
+  .desc { font-size:13px; color:var(--muted); flex:1; }
+  .pill { display:inline-block; font-size:11px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); }
+  .pill.installed { color:var(--ok); border-color:var(--ok); }
+  .pill.running { color:var(--accent); border-color:var(--accent); }
+  .pill.device-only { color:var(--muted); }
+  .actions { display:flex; gap:6px; flex-wrap:wrap; }
+  #log { position:fixed; left:0; right:0; bottom:0; max-height:40vh; background:var(--card); border-top:1px solid var(--line); display:none; }
+  #log header { padding:8px 16px; max-width:none; }
+  #log pre { margin:0; padding:0 16px 12px; overflow:auto; max-height:30vh; font-size:12px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gotchi App Manager</h1>
+  <div class="status" id="status">Checking device…</div>
+</header>
+<div class="bar">
+  <input type="search" id="q" placeholder="Search apps">
+  <select id="filter">
+    <option value="all">All apps</option>
+    <option value="installed">Installed on Gotchi</option>
+    <option value="not">Not installed</option>
+  </select>
+  <select id="port" title="Gotchi connection"><option value="">USB: auto-detect</option></select>
+  <button id="refresh">Refresh</button>
+</div>
+<div class="store" id="store"></div>
+<main id="grid"></main>
+<section id="log">
+  <header><b id="logTitle">Working…</b><button id="closeLog">Close</button></header>
+  <pre id="logText"></pre>
+</section>
+<script>
+const $ = id => document.getElementById(id);
+let local = [], device = null, busy = false;
+
+async function api(path, body) {
+  const res = await fetch(path, body ? { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) } : {});
+  return res.json();
+}
+
+function fmt(bytes) { return bytes > 1e6 ? (bytes/1e6).toFixed(1)+' MB' : Math.round(bytes/1e3)+' KB'; }
+
+function render() {
+  const q = $('q').value.toLowerCase(), filter = $('filter').value;
+  const onDevice = new Map((device?.apps || []).map(a => [a.appId, a]));
+  const rows = local.map(a => ({ ...a, dev: onDevice.get(a.appId) }));
+  // apps on the Gotchi that have no folder in guest/apps
+  for (const [id, d] of onDevice) if (!local.some(a => a.appId === id))
+    rows.push({ appId:id, title:d.displayName, version:d.version || '', description:'', folder:null, dev:d });
+  $('grid').innerHTML = '';
+  for (const a of rows) {
+    if (q && !(a.title + a.appId).toLowerCase().includes(q)) continue;
+    if (filter === 'installed' && !a.dev) continue;
+    if (filter === 'not' && a.dev) continue;
+    const card = document.createElement('div'); card.className = 'card';
+    const pills = [];
+    if (a.dev) pills.push('<span class="pill installed">Installed' + (a.dev.version ? ' v'+a.dev.version : '') + '</span>');
+    if (a.dev?.active) pills.push('<span class="pill running">Running</span>');
+    if (!a.folder) pills.push('<span class="pill device-only">Only on Gotchi</span>');
+    card.innerHTML = `<h3></h3><div class="meta"></div><div>${pills.join(' ')}</div><div class="desc"></div><div class="actions"></div>`;
+    card.querySelector('h3').textContent = a.title;
+    card.querySelector('.meta').textContent = a.appId + (a.version ? ' · v' + a.version : '') + (a.dev ? ' · ' + fmt(a.dev.sizeBytes) : '');
+    card.querySelector('.desc').textContent = a.description;
+    const actions = card.querySelector('.actions');
+    const btn = (label, cls, fn) => { const b = document.createElement('button'); b.textContent = label; b.className = cls; b.disabled = busy || !device?.ok; b.onclick = fn; actions.append(b); };
+    if (a.folder) btn(a.dev ? 'Update' : 'Install', a.dev ? '' : 'primary', () => job('/api/install', { folder:a.folder }));
+    if (a.dev) btn('Open', '', () => job('/api/start', { appId:a.appId }));
+    if (a.dev) btn('Uninstall', 'danger', () => { if (confirm(`Uninstall ${a.title} from the Gotchi?`)) job('/api/uninstall', { appId:a.appId }); });
+    $('grid').append(card);
+  }
+}
+
+async function refresh() {
+  $('status').textContent = 'Checking device…';
+  local = (await api('/api/apps')).apps;
+  render();
+  device = await api('/api/device');
+  if (device.ok) {
+    $('status').innerHTML = `<b class="on">● Gotchi connected</b> · ${device.count} apps installed · ${local.length} in repo`;
+    const pct = device.storeTotalBytes ? Math.round(100 * device.storeUsedBytes / device.storeTotalBytes) : 0;
+    $('store').innerHTML = `App storage: ${fmt(device.storeUsedBytes)} of ${fmt(device.storeTotalBytes)} used<div class="meter"><div style="width:${pct}%"></div></div>`;
+  } else {
+    $('status').innerHTML = `<b class="off">● Gotchi not connected</b> · plug it in over USB, then Refresh`;
+    $('status').title = device.error || '';
+    $('store').textContent = '';
+  }
+  render();
+}
+
+async function job(path, body) {
+  busy = true; render();
+  const { job: id, error } = await api(path, body);
+  $('log').style.display = 'block';
+  if (!id) { $('logTitle').textContent = 'Failed'; $('logText').textContent = error; busy = false; return render(); }
+  for (;;) {
+    const j = await api('/api/jobs/' + id);
+    $('logTitle').textContent = j.label + (j.state === 'running' ? ' …' : j.state === 'done' ? ' ✓ done' : ' ✗ failed');
+    $('logText').textContent = j.log; $('logText').scrollTop = 1e9;
+    if (j.state !== 'running') break;
+    await new Promise(r => setTimeout(r, 800));
+  }
+  busy = false; refresh();
+}
+
+async function loadPorts() {
+  const { ports, settings } = await api('/api/ports');
+  const list = Array.isArray(ports) ? ports : (ports?.ports || []);
+  for (const p of list) {
+    const o = document.createElement('option');
+    o.value = p.port || p.device || p.path || '';
+    o.textContent = (o.value) + (p.board || p.chip ? ' · ' + (p.board || p.chip) : '');
+    if (o.value) $('port').append(o);
+  }
+  if (settings.port) $('port').value = settings.port;
+}
+
+$('q').oninput = render; $('filter').onchange = render; $('refresh').onclick = refresh;
+$('closeLog').onclick = () => $('log').style.display = 'none';
+$('port').onchange = async () => { await api('/api/settings', { port:$('port').value, transport:$('port').value ? null : 'usb' }); refresh(); };
+refresh(); loadPorts();
+</script>
+</body>
+</html>
