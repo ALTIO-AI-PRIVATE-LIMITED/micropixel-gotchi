@@ -15,7 +15,7 @@ UA = {"User-Agent": "Gotchi-App-Site/1.0"}
 
 
 def upstream(url: str) -> bytes:
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=60) as r:
+    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20) as r:
         return r.read()
 
 

@@ -13,6 +13,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = Path(__file__).resolve().parent / "apps"
+GOTCHI_W, GOTCHI_H = 296, 240  # Cheeko Gotchi screen
 
 
 def title(manifest, folder):
@@ -32,6 +33,11 @@ def main():
         if only and folder not in only:
             continue
         manifest = json.loads(app_json.read_text())
+        display = manifest.get("requirements", {}).get("display", {})
+        mw, mh = display.get("min_width", 0), display.get("min_height", 0)
+        if not ((GOTCHI_W >= mw and GOTCHI_H >= mh) or (GOTCHI_H >= mw and GOTCHI_W >= mh)):
+            print(f"--  {folder}: needs {mw}x{mh}, skipped (Gotchi is {GOTCHI_W}x{GOTCHI_H})")
+            continue
         bundle = OUT / f"{folder}.bundle.bin"
         print(f"==> {folder}", flush=True)
         result = subprocess.run([sys.executable, str(REPO / "tools/micropixel"), "package", str(app_json.parent),

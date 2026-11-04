@@ -1,6 +1,8 @@
 import { GotchiUsb } from './gotchi-usb.js';
 
 const STORE = 'https://micropixel.ai';
+// Cheeko Gotchi: ESP32-S3, 296x240 screen. Used until a real Gotchi is connected.
+const GOTCHI = { target: 'xtensa', width: 296, height: 240 };
 const $ = id => document.getElementById(id);
 let catalog = [];        // merged list of installable apps
 let device = null;       // { status, apps, storeUsed, storeTotal }
@@ -16,13 +18,13 @@ function cmpVersion(a = '', b = '') {
 
 async function loadCatalog() {
   const [store, ours] = await Promise.all([
-    fetch('/api/store').then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
+    fetch('/api/store', { signal: AbortSignal.timeout(15000) }).then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
     fetch('apps/index.json').then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
   ]);
   const byId = new Map();
   for (const a of store.apps || []) {
     if (a.hidden) continue;
-    const releases = (a.releases || []).filter(r => !r.withdrawn && r.packageType === 'app');
+    const releases = (a.releases || []).filter(r => !r.withdrawn && (r.packageType || 'app') === 'app');
     if (!releases.length) continue;
     byId.set(a.appId, {
       appId: a.appId, title: a.title, summary: a.summary || '', developer: a.developer || '',
@@ -45,13 +47,13 @@ async function loadCatalog() {
 }
 
 function releaseFor(app) {
-  const target = device?.status.target || 'xtensa';
+  const target = (device?.status || GOTCHI).target;
   return app.releases.find(r => r.target === target) || null;
 }
 function fits(rel) {
-  if (!rel || !device) return !!rel;
+  if (!rel) return false;
   const d = rel.requirements?.display; if (!d) return true;
-  const w = device.status.width, h = device.status.height;
+  const { width: w, height: h } = device?.status || GOTCHI;
   const mw = d.min_width || 0, mh = d.min_height || 0;
   return (w >= mw && h >= mh) || (h >= mw && w >= mh);
 }
@@ -66,7 +68,7 @@ function render() {
     const rel = releaseFor(a), dev = installed.get(a.appId);
     const update = dev && rel && (dev.sha256 ? dev.sha256 !== rel.sha256 && (!dev.version || cmpVersion(rel.version, dev.version) >= 0) : cmpVersion(rel.version, dev.version || '0') > 0);
     return { ...a, rel, dev, update, fit: fits(rel) };
-  });
+  }).filter(r => r.rel && r.fit);
   for (const [id, d] of installed) if (!catalog.some(a => a.appId === id))
     rows.push({ appId: id, title: d.displayName, summary: 'Installed on your Gotchi. Not in any catalog.', source: 'Only on this Gotchi', releases: [], rel: null, dev: d, fit: true });
 
