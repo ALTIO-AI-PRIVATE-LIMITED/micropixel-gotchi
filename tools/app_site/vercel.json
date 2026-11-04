@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/file.js": { "includeFiles": "private/**", "maxDuration": 60 },
+    "api/download.js": { "maxDuration": 60 }
+  },
+  "routes": [
+    { "src": "/(private|lib|\\.vercel)(/.*)?", "status": 404, "dest": "/404" }
+  ]
+}

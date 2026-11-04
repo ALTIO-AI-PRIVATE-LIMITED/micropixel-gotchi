@@ -1,0 +1,41 @@
+{
+  "version": "0.9.6",
+  "commit": "3f4ba1d",
+  "built": "2026-11-04",
+  "update": [
+    {
+      "file": "bootloader.bin",
+      "offset": 0
+    },
+    {
+      "file": "partition-table.bin",
+      "offset": 32768
+    },
+    {
+      "file": "ota_data_initial.bin",
+      "offset": 65536
+    },
+    {
+      "file": "micropixel.bin",
+      "offset": 196608
+    }
+  ],
+  "full": [
+    {
+      "file": "bootloader.bin",
+      "offset": 0
+    },
+    {
+      "file": "partition-table.bin",
+      "offset": 32768
+    },
+    {
+      "file": "ota_data_initial.bin",
+      "offset": 65536
+    },
+    {
+      "file": "micropixel.bin",
+      "offset": 196608
+    }
+  ]
+}

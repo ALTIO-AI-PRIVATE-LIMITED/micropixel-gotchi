@@ -51,7 +51,25 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="login" hidden>
+  <h1>Gotchi <span>Apps</span></h1>
+  <div class="card" style="max-width:420px">
+    <div class="body">
+      <h3>Sign in</h3>
+      <p class="sum" style="-webkit-line-clamp:unset">Enter your email. We'll send you a 6-digit code.</p>
+      <form id="emailForm" class="bar">
+        <input type="email" id="email" required placeholder="you@example.com" autocomplete="email" style="flex:1">
+        <button class="primary" id="sendBtn">Send code</button>
+      </form>
+      <form id="codeForm" class="bar" hidden>
+        <input id="code" inputmode="numeric" pattern="\d{6}" maxlength="6" required placeholder="6-digit code" autocomplete="one-time-code" style="flex:1">
+        <button class="primary" id="verifyBtn">Sign in</button>
+      </form>
+      <small class="meta" id="loginMsg"></small>
+    </div>
+  </div>
+</div>
+<div class="wrap" id="appView" hidden>
   <header>
     <h1>Gotchi <span>Apps</span></h1>
     <div class="device" id="device">
@@ -72,6 +90,16 @@
     <button id="updateAll" disabled>Update all</button>
   </div>
   <div id="sections"></div>
+  <h2>Gotchi firmware</h2>
+  <div class="card"><div class="body">
+    <h3 id="fwTitle">Main firmware</h3>
+    <div class="meta" id="fwMeta">Loading…</div>
+    <p class="sum" style="-webkit-line-clamp:unset">Flashes the Gotchi's operating system over USB. "Update firmware" keeps your installed apps. "Full reset" erases everything first, so the Gotchi starts clean. Disconnect the app list above first.</p>
+    <div class="progress" id="fwProgress" hidden><div></div></div>
+    <div class="actions"><button class="primary" id="fwUpdate" disabled>Update firmware</button><button class="danger" id="fwFull" disabled>Full reset</button></div>
+    <pre class="meta" id="fwLog" style="max-height:160px;overflow:auto;white-space:pre-wrap;margin:0" hidden></pre>
+  </div></div>
+  <small class="meta">Signed in as <span id="who"></span> · <a href="#" id="signout" style="color:inherit">Sign out</a></small>
 </div>
 <dialog id="confirm"><p id="confirmText"></p><div class="actions"><button id="confirmNo">Cancel</button><button class="danger" id="confirmYes">Uninstall</button></div></dialog>
 <script type="module" src="app.js"></script>

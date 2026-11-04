@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-OUT = Path(__file__).resolve().parent / "apps"
+OUT = Path(__file__).resolve().parent / "private" / "apps"
 GOTCHI_W, GOTCHI_H = 296, 240  # Cheeko Gotchi screen
 
 

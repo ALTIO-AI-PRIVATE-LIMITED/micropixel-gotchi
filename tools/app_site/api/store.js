@@ -1,5 +1,8 @@
 // Relays the public MicroPixel App Store catalog (micropixel.ai sends no CORS headers).
+import { requireSession } from '../lib/auth.js';
+
 export default async function handler(req, res) {
+  if (!await requireSession(req, res)) return;
   const upstream = await fetch('https://micropixel.ai/api/v1/store/apps', {
     headers: { 'User-Agent': 'Gotchi-App-Site/1.0', Accept: 'application/json' },
   });

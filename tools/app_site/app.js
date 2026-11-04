@@ -19,7 +19,7 @@ function cmpVersion(a = '', b = '') {
 async function loadCatalog() {
   const [store, ours] = await Promise.all([
     fetch('/api/store', { signal: AbortSignal.timeout(15000) }).then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
-    fetch('apps/index.json').then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
+    fetch('/api/file?path=apps/index.json').then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
   ]);
   const byId = new Map();
   for (const a of store.apps || []) {
@@ -33,7 +33,7 @@ async function loadCatalog() {
     });
   }
   for (const a of ours.apps || []) {
-    const rel = { target: a.target, version: a.version, sizeBytes: a.sizeBytes, sha256: a.sha256, requirements: a.requirements, url: a.file };
+    const rel = { target: a.target, version: a.version, sizeBytes: a.sizeBytes, sha256: a.sha256, requirements: a.requirements, url: '/api/file?path=' + a.file };
     const existing = byId.get(a.appId);
     if (existing) {
       // keep whichever build is newer for this chip
@@ -120,6 +120,7 @@ function card(r) {
 function confirmThen(text, fn) {
   $('confirmText').textContent = text; const d = $('confirm'); d.showModal();
   $('confirmNo').onclick = () => d.close();
+  $('confirmYes').textContent = /reset/i.test(text) ? 'Erase and flash' : 'Uninstall';
   $('confirmYes').onclick = () => { d.close(); fn(); };
 }
 
@@ -185,5 +186,77 @@ $('q').oninput = render; $('filter').onchange = render;
 if (!GotchiUsb.supported()) { $('noserial').hidden = false; $('connect').disabled = true; }
 navigator.serial?.addEventListener('disconnect', () => { usb = null; device = null; showDevice(); });
 
-await loadCatalog();
-render();
+// ---------- sign-in gate ----------
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || 'Something went wrong'); return j;
+}
+let ticket = null;
+$('emailForm').onsubmit = async e => {
+  e.preventDefault(); $('sendBtn').disabled = true; $('loginMsg').textContent = 'Sending…';
+  try { ticket = (await post('/api/auth/send', { email: $('email').value })).ticket;
+        $('codeForm').hidden = false; $('code').focus(); $('loginMsg').textContent = `Code sent to ${$('email').value}. Check your inbox.`; }
+  catch (err) { $('loginMsg').textContent = err.message; }
+  $('sendBtn').disabled = false;
+};
+$('codeForm').onsubmit = async e => {
+  e.preventDefault(); $('verifyBtn').disabled = true;
+  try { const { email } = await post('/api/auth/verify', { email: $('email').value, code: $('code').value, ticket }); await enter(email); }
+  catch (err) { $('loginMsg').textContent = err.message; }
+  $('verifyBtn').disabled = false;
+};
+$('signout').onclick = async e => { e.preventDefault(); await post('/api/auth/me', {}); location.reload(); };
+
+async function enter(email) {
+  $('login').hidden = true; $('appView').hidden = false; $('who').textContent = email;
+  loadFirmware();
+  await loadCatalog(); render();
+}
+
+// ---------- main firmware (esptool-js over Web Serial) ----------
+let firmware = null;
+async function loadFirmware() {
+  const r = await fetch('/api/file?path=firmware/manifest.json');
+  if (!r.ok) { $('fwMeta').textContent = 'No firmware published yet.'; return; }
+  firmware = await r.json();
+  $('fwTitle').textContent = `Main firmware v${firmware.version}`;
+  $('fwMeta').textContent = `Cheeko Gotchi · ESP32-S3 · built ${firmware.built}`;
+  $('fwUpdate').disabled = $('fwFull').disabled = !GotchiUsb.supported();
+}
+async function flash(mode) {
+  const parts = mode === 'full' ? firmware.full : firmware.update;
+  const log = t => { $('fwLog').hidden = false; $('fwLog').textContent += t + '\n'; $('fwLog').scrollTop = 1e9; };
+  if (usb) { await usb.disconnect(); usb = null; device = null; showDevice(); }
+  $('fwUpdate').disabled = $('fwFull').disabled = true; $('fwLog').textContent = '';
+  const bar = $('fwProgress'); bar.hidden = false; bar.firstChild.style.width = '0%';
+  let transport;
+  try {
+    const { ESPLoader, Transport } = await import('https://unpkg.com/esptool-js@0.5.7/bundle.js');
+    const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a }] });
+    log('Downloading firmware…');
+    const files = [];
+    for (const p of parts) {
+      const res = await fetch('/api/file?path=firmware/' + p.file);
+      if (!res.ok) throw new Error('Download failed: ' + p.file);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      files.push({ data: bin, address: p.offset });
+    }
+    transport = new Transport(port, true);
+    const loader = new ESPLoader({ transport, baudrate: 460800, romBaudrate: 115200,
+      terminal: { clean() {}, writeLine: log, write: t => { $('fwLog').textContent += t; } } });
+    log('Connecting to ' + await loader.main());
+    const total = files.reduce((n, f) => n + f.data.length, 0); const done = files.map(() => 0);
+    await loader.writeFlash({ fileArray: files, flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep', eraseAll: mode === 'full', compress: true,
+      reportProgress: (i, written) => { done[i] = written; bar.firstChild.style.width = (100 * done.reduce((a, b) => a + b, 0) / total) + '%'; } });
+    await loader.after('hard_reset');
+    log('Done. The Gotchi is restarting.');
+  } catch (e) { if (e.name !== 'NotFoundError') log('Failed: ' + e.message); }
+  try { await transport?.disconnect(); } catch {}
+  $('fwUpdate').disabled = $('fwFull').disabled = false;
+}
+$('fwUpdate').onclick = () => flash('update');
+$('fwFull').onclick = () => confirmThen('Full reset erases every app and setting on this Gotchi, then installs the firmware. You can reinstall apps from this page after. Continue?', () => flash('full'));
+
+const me = await fetch('/api/auth/me').then(r => r.ok ? r.json() : null).catch(() => null);
+if (me?.email) await enter(me.email); else $('login').hidden = false;
