@@ -23,6 +23,16 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parts = urlsplit(self.path)
         try:
+            if parts.path == "/api/auth/me":
+                # Local preview skips Google sign-in.
+                return self.reply(b'{"email":"preview@localhost"}', "application/json")
+            if parts.path == "/api/file":
+                rel = parse_qs(parts.query).get("path", [""])[0]
+                target = (ROOT / "private" / rel).resolve()
+                if not str(target).startswith(str((ROOT / "private").resolve())) or not target.is_file():
+                    return self.reply(b'{"error":"not found"}', "application/json", 404)
+                kind = "application/json" if target.suffix == ".json" else "application/octet-stream"
+                return self.reply(target.read_bytes(), kind)
             if parts.path == "/api/store":
                 return self.reply(upstream("https://micropixel.ai/api/v1/store/apps"), "application/json")
             if parts.path == "/api/download":

@@ -17,9 +17,10 @@ function cmpVersion(a = '', b = '') {
 }
 
 async function loadCatalog() {
-  const [store, ours] = await Promise.all([
+  const [store, ours, info] = await Promise.all([
     fetch('/api/store', { signal: AbortSignal.timeout(15000) }).then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
     fetch('/api/file?path=apps/index.json').then(r => r.ok ? r.json() : { apps: [] }).catch(() => ({ apps: [] })),
+    fetch('/app_info.json').then(r => r.ok ? r.json() : {}).catch(() => ({})),
   ]);
   const byId = new Map();
   for (const a of store.apps || []) {
@@ -42,6 +43,12 @@ async function loadCatalog() {
     } else {
       byId.set(a.appId, { appId: a.appId, title: a.title, summary: a.summary || '', developer: 'Cheeko', cover: '', source: 'Cheeko apps', releases: [rel] });
     }
+  }
+  // Our own thumbnails and longer descriptions win over the catalog's.
+  for (const [id, a] of byId) {
+    const extra = info[id]; if (!extra) continue;
+    a.summary = extra.summary || a.summary; a.info = extra;
+    if (extra.cover !== false && (!a.cover || a.source === 'Cheeko apps')) a.cover = a.cover || `/covers/${id}.png`;
   }
   catalog = [...byId.values()].sort((x, y) => x.title.localeCompare(y.title));
 }
@@ -94,14 +101,26 @@ function render() {
 
 function card(r) {
   const el = document.createElement('div'); el.className = 'card';
-  el.innerHTML = `<div class="cover"></div><div class="body"><h3></h3><div class="meta"></div><div class="pills"></div><div class="sum"></div><div class="progress" hidden><div></div></div><div class="actions"></div></div>`;
+  el.innerHTML = `<div class="cover"></div><div class="body"><h3></h3><div class="meta"></div><div class="pills"></div><div class="sum"></div><details class="more" hidden><summary>About this app</summary><div class="info"></div></details><div class="progress" hidden><div></div></div><div class="actions"></div></div>`;
   const cover = el.querySelector('.cover');
   if (r.cover) { const img = new Image(); img.loading = 'lazy'; img.alt = ''; img.src = r.cover; cover.append(img); } else cover.textContent = r.title.slice(0, 14);
   el.querySelector('h3').textContent = r.title;
   el.querySelector('.meta').textContent = [r.developer, r.rel ? 'v' + r.rel.version : null, r.rel ? fmt(r.rel.sizeBytes) : null].filter(Boolean).join(' · ');
   el.querySelector('.sum').textContent = r.summary;
+  if (r.info) {
+    const more = el.querySelector('.more'); more.hidden = false;
+    const box = more.querySelector('.info');
+    const add = (label, text) => { if (!text) return; const h = document.createElement('b'); h.textContent = label; const t = document.createElement('p'); t.textContent = text; box.append(h, t); };
+    add('What it does', r.info.about); add('Why we made it', r.info.why);
+    if (r.info.needs?.length) {
+      const h = document.createElement('b'); h.textContent = 'What you need'; const ul = document.createElement('ul');
+      for (const n of r.info.needs) { const li = document.createElement('li'); li.textContent = n; ul.append(li); }
+      box.append(h, ul);
+    }
+  }
   const pills = el.querySelector('.pills');
   const pill = (t, c) => { const s = document.createElement('span'); s.className = 'pill ' + c; s.textContent = t; pills.append(s); };
+  if (r.info?.kind) pill(r.info.kind, 'kind');
   if (r.dev) pill('Installed' + (r.dev.version ? ' v' + r.dev.version : ''), 'ok');
   if (r.update) pill('Update', 'up');
   if (r.dev?.active) pill('Running', 'run');
@@ -226,7 +245,7 @@ async function flash(mode) {
   if (usb) { await usb.disconnect(); usb = null; device = null; showDevice(); }
   $('fwUpdate').disabled = $('fwFull').disabled = true; $('fwLog').textContent = '';
   const bar = $('fwProgress'); bar.hidden = false; bar.firstChild.style.width = '0%';
-  let transport;
+  let transport, restarted = false;
   try {
     const { ESPLoader, Transport } = await import('https://unpkg.com/esptool-js@0.5.7/bundle.js');
     const port = await navigator.serial.requestPort({ filters: [{ usbVendorId: 0x303a }] });
@@ -246,12 +265,21 @@ async function flash(mode) {
     const total = files.reduce((n, f) => n + f.data.length, 0); const done = files.map(() => 0);
     await loader.writeFlash({ fileArray: files, flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep', eraseAll: mode === 'full', compress: true,
       reportProgress: (i, written) => { done[i] = written; bar.firstChild.style.width = (100 * done.reduce((a, b) => a + b, 0) / total) + '%'; } });
-    await loader.after('hard_reset');
-    log('Done. The Gotchi is restarting.');
+    log('Firmware written. Restarting the Gotchi…');
+    try { await loader.after('hard_reset'); } catch {}
+    // USB-JTAG reset: hold RTS with DTR released, then let go.
+    try {
+      await transport.setDTR(false); await transport.setRTS(true);
+      await new Promise(r => setTimeout(r, 120)); await transport.setRTS(false);
+    } catch {}
+    log('Done.');
+    restarted = true;
   } catch (e) { if (e.name !== 'NotFoundError') log('Failed: ' + e.message); }
   try { await transport?.disconnect(); } catch {}
   $('fwUpdate').disabled = $('fwFull').disabled = false;
+  if (restarted) $('restartNotice').showModal();
 }
+$('restartOk').onclick = () => $('restartNotice').close();
 $('fwUpdate').onclick = () => flash('update');
 $('fwFull').onclick = () => confirmThen('Full reset erases every app and setting on this Gotchi, then installs the firmware. You can reinstall apps from this page after. Continue?', () => flash('full'));
 

@@ -1,0 +1,79 @@
+{
+  "cheeko.devcon-wall": {
+    "summary": "Line up nine Gotchis in a 3x3 frame and they play the DevCon 8 India logo animation together as one big screen.",
+    "about": "Each Gotchi shows its own slice of one 888x720 animation. On first start you pick its spot (1 to 9, row by row from the top left). The Gotchis keep each other in step over their own radio, so no Wi-Fi or router is needed. Tap a screen to see its spot and a sync dot: green means it hears the others.",
+    "why": "Made for the DevCon India booth, to show what a group of small Gotchis can do together.",
+    "needs": ["9 Gotchis for the full wall (fewer still works, each shows its own tile)", "The same Gotchi firmware on every unit", "Best with Wi-Fi turned off on all of them"],
+    "kind": "Group display"
+  },
+  "cheeko.walkie-talkie": {
+    "summary": "Push-to-talk voice between two Gotchis, like a real walkie-talkie. No phone, no Wi-Fi.",
+    "about": "Hold VOL+ (or the TALK circle) to talk and let go to listen, with a roger beep at the end. Double-tap to ring the other Gotchi. VOL- changes the volume. The voice goes straight from one Gotchi to the other over their built-in radio.",
+    "why": "A fun way for kids to talk across rooms, and a showcase of the Gotchi microphone, speaker and radio working together.",
+    "needs": ["2 Gotchis with Walkie-Talkie installed", "Pair once: press BOOT on both, check the 4-digit codes match, press BOOT again"],
+    "kind": "Two Gotchis"
+  },
+  "cheeko.peer-test": {
+    "summary": "Pairs two Gotchis and pings between them twice a second, showing delay, lost packets and signal strength.",
+    "about": "Press BOOT (or tap) on both to pair, then accept when the code shows. The screen shows round-trip time, packet loss and signal strength live. VOL- forgets the pairing.",
+    "why": "A quick check that the radio link between two Gotchis is healthy before using Walkie-Talkie or DevCon Wall.",
+    "needs": ["2 Gotchis with Radio Test installed"],
+    "kind": "Two Gotchis · Tool"
+  },
+  "cheeko.mic-test": {
+    "summary": "Records three seconds from the Gotchi microphone and plays it straight back.",
+    "about": "Tap the screen, BOOT or VOL+ to record. After three seconds the Gotchi plays the recording through its speaker, so you can hear how the mic sounds.",
+    "why": "A simple check that the microphone and speaker work, for example after a firmware update.",
+    "needs": ["Nothing extra"],
+    "kind": "Tool"
+  },
+  "cheeko.wispr-key": {
+    "summary": "Turns the Gotchi into a set of big buttons for Wispr Flow voice typing on your Mac.",
+    "about": "Swipe left or right to pick an action, then press the circle: hold to talk, dictate, Command Mode and more. The Gotchi acts as a Bluetooth keyboard named CGotchi. VOL- sends Enter and VOL+ jumps to the next action.",
+    "why": "Voice typing is faster with one physical button on your desk than with keyboard shortcuts.",
+    "needs": ["A Mac with Wispr Flow", "Pair the Mac with the Bluetooth keyboard \"CGotchi\"", "Command Mode also needs the WisprKey rule in Karabiner-Elements"],
+    "kind": "Mac companion"
+  },
+  "cheeko.chat-remote": {
+    "summary": "One tap brings WhatsApp or WeChat to the front on your Mac. The other tiles change the volume.",
+    "about": "Tapping a chat tile opens that app on the paired Mac through Spotlight. The volume tiles and the VOL-/VOL+ keys send the Mac's media volume keys. It uses the same Bluetooth pairing as WisprKey, so if one works, both do.",
+    "why": "A tiny desk remote for the chats you open all day.",
+    "needs": ["A Mac paired with the Bluetooth keyboard \"CGotchi\"", "WhatsApp and/or WeChat installed on the Mac"],
+    "kind": "Mac companion"
+  },
+  "cheeko.iphone-agent": {
+    "summary": "Mirrors your iPhone screen onto the Gotchi and lets the Gotchi act as the phone's mouse and keyboard.",
+    "about": "The iPhone sends its screen to the Gotchi over AirPlay. The Gotchi connects back over Bluetooth as a mouse and keyboard, so a phone app can see the screen and tap through it. It is based on the open-source ESP32 iPhone Agent by Henry Yuan.",
+    "why": "An experiment in letting a small device see and drive a phone, the starting point for a phone agent.",
+    "needs": ["An iPhone with the ESP32 Agent app", "iPhone and Gotchi on the same Wi-Fi for AirPlay", "AssistiveTouch on the iPhone to see the pointer"],
+    "kind": "Phone companion · Experimental"
+  },
+  "micropixel.polygon-benchmark": {
+    "summary": "Draws waves of triangles and squares and measures how many frames per second the Gotchi manages.",
+    "about": "Runs through several drawing tests one after another and shows the frame rate of each. App developers use it to see how much 3D-style drawing fits on the device.",
+    "why": "For developers, to know how fast games and animations can run before they build them.",
+    "needs": ["Nothing extra"],
+    "kind": "Developer tool"
+  },
+  "lovelyhim.ball-fall": {
+    "summary": "Steer a golden ball down an endless shaft and land on the next platform before the red line catches you.",
+    "about": "Hold the left or right side of the screen to steer. The platforms keep rising, and touching the red line at the top or falling out of the bottom ends the run. Simple to play, hard to master.",
+    "why": "A quick one-thumb game to see how deep you can go.",
+    "needs": ["Nothing extra"],
+    "kind": "Game"
+  },
+  "micropixel.jump-jump": {
+    "summary": "Hold to charge, release to jump. Land on the centre of each platform to build a streak.",
+    "about": "The longer you hold, the further you jump. Landing dead centre doubles your points and keeps the streak going. Some platforms hide bonuses.",
+    "why": "A classic one-button game that suits the Gotchi's touch screen.",
+    "needs": ["Nothing extra"],
+    "kind": "Game"
+  },
+  "com.lckfb.jump": {
+    "summary": "Jump Jump in 3D: original-style jumping, 17 random bonus platforms with their own animations and sounds.",
+    "about": "Hold to charge and release to jump between 3D platforms. Bonus platforms give extra points with their own effects.",
+    "why": "A 3D take on Jump Jump from the MicroPixel community.",
+    "needs": ["Nothing extra"],
+    "kind": "Game"
+  }
+}

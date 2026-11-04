@@ -46,6 +46,10 @@
   .pill { font-size:11px; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
   .pill.ok { color:var(--ok); border-color:var(--ok); } .pill.up { color:var(--accent); border-color:var(--accent); }
   .pill.run { color:var(--accent2); border-color:var(--accent2); } .pill.no { color:var(--warn); border-color:var(--warn); }
+  .pill.kind { color:var(--text); border-color:var(--line); background:var(--bg); }
+  .more { font-size:13px; } .more summary { cursor:pointer; color:var(--accent2); font-weight:500; }
+  .more .info { padding-top:6px; } .more b { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-top:8px; }
+  .more p { margin:2px 0 0; } .more ul { margin:4px 0 0; padding-left:18px; }
   .actions { display:flex; gap:6px; flex-wrap:wrap; }
   .progress { height:4px; background:var(--line); border-radius:2px; overflow:hidden; } .progress div { height:100%; background:var(--accent); width:0; transition:width .2s; }
   dialog { border:1px solid var(--line); border-radius:12px; background:var(--card); color:var(--text); max-width:380px; }
@@ -97,6 +101,7 @@
   <small class="meta">Signed in as <span id="who"></span> · <a href="#" id="signout" style="color:inherit">Sign out</a></small>
 </div>
 <dialog id="confirm"><p id="confirmText"></p><div class="actions"><button id="confirmNo">Cancel</button><button class="danger" id="confirmYes">Uninstall</button></div></dialog>
+<dialog id="restartNotice"><h3 style="margin-top:0">Firmware installed</h3><p>If the Gotchi screen has not restarted within 10 seconds, restart it yourself: unplug the USB cable and plug it back in. If it has a battery, also switch it off and on.</p><p class="meta">Your apps are kept unless you chose Full reset.</p><div class="actions"><button class="primary" id="restartOk">OK</button></div></dialog>
 <script type="module" src="app.js"></script>
 </body>
 </html>
