@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "app_id": "cheeko.devcon-wall",
+  "version": "0.1.0",
+  "threading": "none",
+  "pinned_memory": true,
+  "title": "DevCon Wall",
+  "sources": [
+    "src/main.cpp",
+    "src/wall_render.cpp"
+  ],
+  "requirements": {
+    "schema_version": 1,
+    "display": {
+      "layouts": [
+        "landscape"
+      ],
+      "min_width": 296,
+      "min_height": 240
+    },
+    "required": [],
+    "optional": [
+      "input.keys",
+      "input.touch"
+    ],
+    "any_of": [],
+    "services": {}
+  }
+}
