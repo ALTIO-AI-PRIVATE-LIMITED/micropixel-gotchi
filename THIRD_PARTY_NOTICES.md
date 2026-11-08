@@ -245,6 +245,12 @@ Exact versions are recorded in `firmware/espressif/main/idf_component.yml`. The 
 Apache-2.0 in its manifest; the modem and iot_eth packages also include their upstream license texts.
 MicroPixel does not maintain a copied NT26 or UHCI implementation.
 
+## Apps ported to the Gotchi
+
+`guest/apps/port-*` are Gotchi versions of open source M5Stack apps. Each folder keeps the original author's
+license in its `LICENSE` file and names the original project at the top of `main.cpp`. Some folders include original
+source files unchanged, such as `hourglass_physics.c` and `ImaAdpcm.cpp`.
+
 ## System font sources
 
 Built-in English text, icon generation, and Host font tests use font files vendored in

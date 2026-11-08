@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "app_id": "cheeko.port-hourglass",
+  "version": "0.1.0",
+  "threading": "none",
+  "title": "Liquid Hourglass",
+  "sources": [
+    "main.cpp",
+    "hourglass_physics.c",
+    "hg_math.c"
+  ],
+  "requirements": {
+    "schema_version": 1,
+    "display": {
+      "layouts": [
+        "square",
+        "portrait",
+        "landscape"
+      ],
+      "min_width": 240,
+      "min_height": 240
+    },
+    "required": [
+      "sensor.acceleration"
+    ],
+    "optional": [
+      "audio.output",
+      "input.keys",
+      "input.touch"
+    ],
+    "any_of": [],
+    "services": {}
+  }
+}
