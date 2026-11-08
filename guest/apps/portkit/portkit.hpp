@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 
+#include <new>
 #include <optional>
 
 #include "sdk/micropixel.hpp"
@@ -19,8 +20,15 @@ using micropixel::Color;
 using micropixel::Duration;
 using micropixel::Rect;
 using micropixel::SystemFont;
+using micropixel::Application;
+using micropixel::KeyCode;
 
 constexpr Color Rgb(uint8_t r, uint8_t g, uint8_t b) { return Color::Rgb(r, g, b); }
+
+inline constexpr int32_t kW = 296, kH = 240;  // the Gotchi screen
+inline constexpr SystemFont kSmall = SystemFont::kSmall, kMedium = SystemFont::kMedium, kLarge = SystemFont::kLarge,
+                            kTitle = SystemFont::kTitle;
+inline constexpr Color kWhite = Rgb(245, 245, 250), kGrey = Rgb(150, 155, 170), kDim = Rgb(70, 74, 90);
 
 class Canvas final {
    public:
@@ -181,27 +189,172 @@ inline void Button(Canvas& canvas, const Box& box, const char* text, Color fill,
     canvas.Text(box.x + box.w / 2, box.y + (box.h - 16) / 2, text, ink, font, true);
 }
 
-inline void Beep(micropixel::Application& app, uint32_t hz, uint32_t ms, uint16_t volume = 200U) {
+// A dim box in the middle of the screen with a title and a hint under it.
+inline void Banner(Canvas& c, const char* title, const char* hint, Color accent) {
+    c.Fill(0, 0, kW, kH, Rgb(0, 0, 0), 150U);
+    c.Round(24, 74, kW - 48, 92, 12, Rgb(18, 20, 32));
+    c.Frame(36, 84, kW - 72, 2, accent);
+    c.Text(kW / 2, 96, title, accent, kLarge, true);
+    c.Text(kW / 2, 134, hint, kWhite, kSmall, true);
+}
+
+inline void Beep(micropixel::Application& app, uint32_t hz, uint32_t ms, uint16_t volume = 200U,
+                 micropixel::Waveform wave = micropixel::Waveform::kSine) {
     micropixel::Tone tone{};
+    tone.waveform = wave;
     tone.frequency_hz = hz;
     tone.duration = Duration::Milliseconds(ms);
     tone.volume_per_mille = volume;
     (void)app.audio().Play(tone);
 }
 
-// Runs `game`, which provides Tick(uint32_t ms), Touch(const TouchEvent&) and
-// Key(const KeyEvent&).
+// Milliseconds since the app started, from the real clock rather than counted frames.
+class Millis final {
+   public:
+    explicit Millis(micropixel::Application& app) : app_(app), start_(app.clock().Now()) {}
+    [[nodiscard]] uint32_t Now() const { return static_cast<uint32_t>((app_.clock().Now() - start_).count_microseconds() / 1000U); }
+
+   private:
+    micropixel::Application& app_;
+    micropixel::TimePoint start_;
+};
+
+// A saved number, such as a best score.
+class Prefs final {
+   public:
+    explicit Prefs(micropixel::Application& app) : app_(app) {}
+    [[nodiscard]] uint32_t Get(const char* key, uint32_t fallback = 0U) const { return app_.storage().GetU32Or(key, fallback); }
+    void Set(const char* key, uint32_t value) { (void)app_.storage().SetU32(key, value); }
+    // Raw bytes for small lists; the result is how many bytes were read.
+    uint32_t Load(const char* key, uint8_t* bytes, uint32_t capacity) const {
+        const auto got = app_.storage().GetBytes(key, bytes, capacity);
+        return got ? *got : 0U;
+    }
+    void Save(const char* key, const uint8_t* bytes, uint32_t length) { (void)app_.storage().SetBytes(key, bytes, length); }
+
+   private:
+    micropixel::Application& app_;
+};
+
+// Tilt in screen terms: x is positive when the right edge is down, y when the
+// bottom edge is down. Both are -1..1, and 0 when the Gotchi lies flat.
+class Tilt final {
+   public:
+    explicit Tilt(micropixel::Application& app) {
+        auto opened = app.sensors().OpenFirst<micropixel::Acceleration>(app.devices(), Duration::Milliseconds(20U));
+        if (opened.has_value()) { sensor_.emplace(static_cast<micropixel::Accelerometer&&>(opened.value())); }
+    }
+    void Poll() {
+        if (!sensor_) { return; }
+        const auto sample = sensor_->Read();
+        if (!sample) { return; }
+        const auto& g = sample->value.meters_per_second_squared;
+        x_ += (Unit(-g.x) - x_) * 0.35F;
+        y_ += (Unit(g.y) - y_) * 0.35F;
+        const float jolt = micropixel::math::Abs(g.x) + micropixel::math::Abs(g.y) + micropixel::math::Abs(g.z);
+        jolt_ = jolt > 26.0F;
+        magnitude_ = micropixel::math::Sqrt(g.x * g.x + g.y * g.y + g.z * g.z) / 9.8F;
+    }
+    [[nodiscard]] bool available() const { return sensor_.has_value(); }
+    [[nodiscard]] float x() const { return x_; }
+    [[nodiscard]] float y() const { return y_; }
+    // True on a sharp shake or flick.
+    [[nodiscard]] bool jolt() const { return jolt_; }
+    // Total acceleration in g; about 1 when resting.
+    [[nodiscard]] float magnitude() const { return magnitude_; }
+
+   private:
+    static float Unit(float value) { return micropixel::math::Clamp(value / 9.8F, -1.0F, 1.0F); }
+    std::optional<micropixel::Accelerometer> sensor_{};
+    float x_{}, y_{}, magnitude_{1.0F};
+    bool jolt_{};
+};
+
+// Microphone samples at 16 kHz. Implement Mic() in the app to hear about new audio.
+class Mic final {
+   public:
+    explicit Mic(micropixel::Application& app) : mic_(app.microphone()) {}
+    bool Start() { return mic_.Start().has_value(); }
+    void Stop() { (void)mic_.Stop(); }
+    uint32_t Read(int16_t* samples, uint32_t max) {
+        const uint32_t want = max > micropixel::Microphone::kMaxReadSamples ? micropixel::Microphone::kMaxReadSamples : max;
+        const auto got = mic_.Read(samples, want);
+        return got ? *got : 0U;
+    }
+
+   private:
+    micropixel::Microphone mic_;
+};
+
+// Speaker stream at 16 kHz. Implement Feed() in the app to top it up.
+class Speaker final {
+   public:
+    explicit Speaker(micropixel::Application& app) : app_(app) {}
+    bool Open(uint32_t rate = 16000U) {
+        micropixel::PcmStreamOptions options{};
+        options.sample_rate = rate;
+        options.channels = 1U;
+        options.capacity_frames = 4096U;
+        options.low_water_frames = 1024U;
+        auto opened = app_.audio().OpenPcmStream(options);
+        if (!opened) { return false; }
+        stream_.emplace(static_cast<micropixel::PcmStream&&>(*opened));
+        return true;
+    }
+    void Close() { stream_.reset(); }
+    [[nodiscard]] bool open() const { return stream_.has_value(); }
+    uint32_t Write(const int16_t* samples, uint32_t count) {
+        if (!stream_) { return 0U; }
+        const auto accepted = stream_->Write(samples, count);
+        return accepted ? *accepted : 0U;
+    }
+    [[nodiscard]] micropixel::PcmStream* stream() { return stream_ ? &*stream_ : nullptr; }
+
+   private:
+    micropixel::Application& app_;
+    std::optional<micropixel::PcmStream> stream_{};
+};
+
+inline constexpr auto kBoot = micropixel::KeyCode::kConfirm;
+inline constexpr auto kVolUp = micropixel::KeyCode::kRight;
+inline constexpr auto kVolDown = micropixel::KeyCode::kLeft;
+
+// Runs a Game. Game must have Tick(uint32_t ms) and can add any of:
+// Touch(const TouchEvent&), or Press(x, y), Drag(x, y), Tap(x, y); Key(const
+// KeyEvent&), or Button(KeyCode); Mic(); Feed(); and speaker() returning a Speaker&.
 template <typename Game>
 int Run(micropixel::Application& app, Game& game, uint32_t tick_ms = 33U) {
     micropixel::Timer timer = app.timers().Every(Duration::Milliseconds(tick_ms)).value();
     app.Run([&](const micropixel::Event& event) {
-        if (const auto* fired = event.TimerFrom(timer)) {
-            (void)fired;
+        if (event.TimerFrom(timer) != nullptr) {
             game.Tick(tick_ms);
         } else if (const auto* touch = event.touch()) {
-            game.Touch(*touch);
+            if constexpr (requires { game.Touch(*touch); }) {
+                game.Touch(*touch);
+            } else {
+                const int32_t x = touch->x(), y = touch->y();
+                if (touch->phase() == micropixel::TouchPhase::kDown) {
+                    if constexpr (requires { game.Press(x, y); }) { game.Press(x, y); }
+                } else if (touch->phase() == micropixel::TouchPhase::kMove) {
+                    if constexpr (requires { game.Drag(x, y); }) { game.Drag(x, y); }
+                } else if (touch->phase() == micropixel::TouchPhase::kUp) {
+                    if constexpr (requires { game.Tap(x, y); }) { game.Tap(x, y); }
+                }
+            }
         } else if (const auto* key = event.key()) {
-            game.Key(*key);
+            if constexpr (requires { game.Key(*key); }) {
+                game.Key(*key);
+            } else if constexpr (requires { game.Button(key->code()); }) {
+                if (key->phase() == micropixel::KeyPhase::kDown) { game.Button(key->code()); }
+            }
+        } else if (event.microphone() != nullptr) {
+            if constexpr (requires { game.Mic(); }) { game.Mic(); }
+        } else {
+            if constexpr (requires { game.Feed(); game.speaker(); }) {
+                if (auto* stream = game.speaker().stream(); stream != nullptr && event.LowWaterFrom(*stream) != nullptr) {
+                    game.Feed();
+                }
+            }
         }
         return micropixel::EventResult::kContinue;
     });
@@ -209,5 +362,13 @@ int Run(micropixel::Application& app, Game& game, uint32_t tick_ms = 33U) {
 }
 
 }  // namespace portkit
+
+#define PORTKIT_MAIN(Game, ...)        \
+    int main() {                       \
+        micropixel::Application app;   \
+        alignas(Game) static unsigned char storage[sizeof(Game)]; \
+        Game& game = *new (storage) Game(app); \
+        return portkit::Run(app, game __VA_OPT__(, ) __VA_ARGS__); \
+    }
 
 #endif
