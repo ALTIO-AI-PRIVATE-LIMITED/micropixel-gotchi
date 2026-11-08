@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 //
 // Guest apps have no libm. These are the float helpers hourglass_physics.c
 // calls, each one a single WebAssembly instruction.

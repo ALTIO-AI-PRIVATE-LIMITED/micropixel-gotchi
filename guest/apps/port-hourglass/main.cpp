@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
 //
 // Liquid Hourglass for the Gotchi. Port of VibeStick Hourglass Liquid by
 // oliverxing2025 (https://github.com/oliverxing2025/VibeStick-Hourglass-Liquid).
