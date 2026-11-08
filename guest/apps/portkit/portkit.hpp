@@ -315,6 +315,42 @@ class Speaker final {
     std::optional<micropixel::PcmStream> stream_{};
 };
 
+// An on-screen keyboard for the lower half of the screen. Press() returns the
+// key pressed: a letter, ' ', '\b' for delete, '\n' for done, or 0 for none.
+class Keyboard final {
+   public:
+    static constexpr int32_t kTop = 128, kKeyH = 28;
+    static char Press(int32_t x, int32_t y) {
+        const int32_t row = (y - kTop) / kKeyH;
+        if (y < kTop || row > 3) { return 0; }
+        if (row == 3) { return x < 74 ? '\b' : (x < 222 ? ' ' : '\n'); }
+        const char* keys = Row(row);
+        const int32_t i = (x - Inset(row)) / 29;
+        if (x < Inset(row) || i >= Len(keys)) { return 0; }
+        return keys[i];
+    }
+    static void Draw(Canvas& c, Color key, Color ink) {
+        for (int32_t row = 0; row < 3; ++row) {
+            const char* keys = Row(row);
+            for (int32_t i = 0; keys[i] != '\0'; ++i) {
+                const int32_t x = Inset(row) + i * 29, y = kTop + row * kKeyH;
+                c.Fill(x + 1, y + 1, 27, kKeyH - 2, key);
+                char letter[2] = {keys[i], '\0'};
+                c.Text(x + 15, y + 5, letter, ink, kSmall, true);
+            }
+        }
+        const int32_t y = kTop + 3 * kKeyH;
+        c.Fill(1, y + 1, 72, kKeyH - 2, key); c.Text(37, y + 5, "Del", ink, kSmall, true);
+        c.Fill(75, y + 1, 146, kKeyH - 2, key); c.Text(148, y + 5, "Space", ink, kSmall, true);
+        c.Fill(223, y + 1, 72, kKeyH - 2, key); c.Text(259, y + 5, "Done", ink, kSmall, true);
+    }
+
+   private:
+    static const char* Row(int32_t row) { return row == 0 ? "QWERTYUIOP" : (row == 1 ? "ASDFGHJKL" : "ZXCVBNM"); }
+    static int32_t Inset(int32_t row) { return row == 0 ? 3 : (row == 1 ? 17 : 46); }
+    static int32_t Len(const char* s) { int32_t n = 0; while (s[n] != '\0') { ++n; } return n; }
+};
+
 inline constexpr auto kBoot = micropixel::KeyCode::kConfirm;
 inline constexpr auto kVolUp = micropixel::KeyCode::kRight;
 inline constexpr auto kVolDown = micropixel::KeyCode::kLeft;
