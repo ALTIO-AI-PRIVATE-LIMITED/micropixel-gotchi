@@ -37,11 +37,17 @@ class Canvas final {
         const auto info = app.renderer().info();
         width_ = static_cast<int32_t>(info.width());
         height_ = static_cast<int32_t>(info.height());
-        batch_ = scene_.CreateSpriteBatch(quads).value();
-        capacity_ = quads;
+        // One wire record holds about 1600 instances and one frame about 3000.
+        capacity_ = quads > kMaxQuads ? kMaxQuads : quads;
+        for (uint16_t left = capacity_, i = 0U; left > 0U; ++i) {
+            const uint16_t size = left > kQuadsPerBatch ? kQuadsPerBatch : left;
+            batches_[i] = scene_.CreateSpriteBatch(size).value();
+            left = static_cast<uint16_t>(left - size);
+        }
+        last_quads_ = capacity_;  // a fresh instance is visible with zero size, which the Host rejects; the first Present hides unused ones
         label_capacity_ = labels > kMaxLabels ? kMaxLabels : labels;
         for (uint16_t i = 0U; i < label_capacity_; ++i) {
-            labels_[i] = scene_.CreateLabel({0, 0}, "", Color::White(), SystemFont::kSmall).value();
+            labels_[i] = scene_.CreateLabel({0, 0}, " ", Color::White(), SystemFont::kSmall).value();  // the Host rejects empty text
             labels_[i].SetVisible(false);
         }
     }
@@ -65,7 +71,8 @@ class Canvas final {
         quad.color = color;
         quad.opacity = opacity;
         quad.visible = true;
-        batch_.SetInstance(quads_used_++, quad);
+        batches_[quads_used_ / kQuadsPerBatch].SetInstance(quads_used_ % kQuadsPerBatch, quad);
+        ++quads_used_;
     }
 
     void Frame(int32_t x, int32_t y, int32_t w, int32_t h, Color color, int32_t t = 1) {
@@ -119,6 +126,9 @@ class Canvas final {
 
     void Text(int32_t x, int32_t y, const char* text, Color color, SystemFont font = SystemFont::kSmall,
               bool centered = false) {
+        if (text == nullptr || text[0] == '\0') {
+            return;  // the Host rejects empty text
+        }
         if (labels_used_ >= label_capacity_) {
             return;
         }
@@ -140,7 +150,7 @@ class Canvas final {
 
     void Present() {
         for (uint16_t i = quads_used_; i < last_quads_; ++i) {
-            batch_.SetInstanceVisible(i, false);
+            batches_[i / kQuadsPerBatch].SetInstanceVisible(i % kQuadsPerBatch, false);
         }
         for (uint16_t i = labels_used_; i < last_labels_; ++i) {
             labels_[i].SetVisible(false);
@@ -170,7 +180,8 @@ class Canvas final {
     static constexpr uint16_t kMaxLabels = 48U;
     micropixel::Application& app_;
     micropixel::Scene scene_;
-    micropixel::SpriteBatch batch_{};
+    static constexpr uint16_t kQuadsPerBatch = 1500U, kMaxQuads = 3000U;
+    micropixel::SpriteBatch batches_[kMaxQuads / kQuadsPerBatch]{};
     micropixel::LabelNode labels_[kMaxLabels]{};
     uint16_t capacity_{}, quads_used_{}, last_quads_{};
     uint16_t label_capacity_{}, labels_used_{}, last_labels_{};

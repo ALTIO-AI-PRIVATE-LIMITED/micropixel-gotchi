@@ -15,7 +15,7 @@ using portkit::Canvas;
 using portkit::Color;
 using portkit::Rgb;
 
-constexpr int32_t kCell = 4, kCols = 74, kRows = 60, kMaxIterations = 96;
+constexpr int32_t kCell = 5, kCols = 60, kRows = 48, kMaxIterations = 96;
 constexpr int32_t kBudget = 3500;  // iterations per tick, about a frame of soft float
 constexpr int32_t kShades = 32;
 
@@ -27,7 +27,7 @@ Color Blend(Color a, Color b, int32_t t, int32_t range) {
 
 class Mandelbrot final {
    public:
-    explicit Mandelbrot(Application& app) : app_(app), canvas_(app, Rgb(0, 0, 0), 4600U, 4U) { Restart(); }
+    explicit Mandelbrot(Application& app) : app_(app), canvas_(app, Rgb(0, 0, 0), 3000U, 4U) { Restart(); }
 
     void Tick(uint32_t) {
         if (pass_ > 1) { return; }
