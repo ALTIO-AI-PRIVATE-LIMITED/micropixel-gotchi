@@ -247,6 +247,2065 @@
       "file": "apps/devcon-wall.bundle.bin",
       "sizeBytes": 327680,
       "sha256": "46850c53f6ea05f41ef57fa8aebe9487623d12a744dac14ef0279a96fe29a1ae"
+    },
+    {
+      "appId": "cheeko.port-cardlife",
+      "title": "CardLife",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/port-cardlife.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "627d1612817971bf184808050d8ea92ec41740d2df86b6ded02c1d4f5117c503"
+    },
+    {
+      "appId": "cheeko.port-slot-machine",
+      "title": "Slot Machine",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/port-slot-machine.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "6ac417accac4deb9205160c63c6f8c65075dcb84ce8f2a58d62eafd2a691ce64"
+    },
+    {
+      "appId": "cheeko.port-mandelbrot",
+      "title": "Mandelbrot",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/port-mandelbrot.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "67ba239d2861e534da5a9083a8920cb0c2bac54a325861642df39c032cab0f4e"
+    },
+    {
+      "appId": "cheeko.port-spectrum",
+      "title": "Spectrum Analyzer",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "input.touch"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/port-spectrum.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "9daf461d10c26946aa778464ea1e5d8b59314cdc399ac580a10759444a843462"
+    },
+    {
+      "appId": "cheeko.port-hourglass",
+      "title": "Liquid Hourglass",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "sensor.acceleration"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "input.touch"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/port-hourglass.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "6935a23ccd13c7dbd27084df14fa75e8b4b2f8a40f485ed8715453012c60098b"
+    },
+    {
+      "appId": "cheeko.port-voice-recorder",
+      "title": "Voice Recorder",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/port-voice-recorder.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "c6f35fdfd5fc447c0f1e3b749670b2b7755778e596cdfe6aaa189de102cca843"
+    },
+    {
+      "appId": "cheeko.go-runner",
+      "title": "Rooftop Dash",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-runner.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "cfc26f519f5d9b1793104e7250a1d4612be99090a25518a7512f193843374db9"
+    },
+    {
+      "appId": "cheeko.go-botface",
+      "title": "Bot Buddy",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-botface.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "991c4771eb41f4ddbd75ad568a6cedc3af51e822413b3a6f8effe1f9f399154e"
+    },
+    {
+      "appId": "cheeko.go-stackdrop",
+      "title": "Stack Drop",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-stackdrop.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "1dfbc876adbf484c492e13218ff2c8cb4ef09786c868e0d576f5d4da87e90b9c"
+    },
+    {
+      "appId": "cheeko.go-party",
+      "title": "Party Pack",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-party.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "db0b75c2d99a403aa010f096765bcc85d46eb8fca45580d6314ae1f900c18230"
+    },
+    {
+      "appId": "cheeko.go-synth",
+      "title": "Pocket Synth",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-synth.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "84b671302126cffe8eaa3cc3bc5dd4d8735197281e7f15fb8fafaf9d4a6f3937"
+    },
+    {
+      "appId": "cheeko.go-noodle",
+      "title": "Noodle",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-noodle.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "927ccbb3098de9c9d7a39fa67aa07835efa4617f64e86c1cc2b5708e3f50f8ad"
+    },
+    {
+      "appId": "cheeko.go-blobpal",
+      "title": "Blob Pal",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-blobpal.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "f7116b7f666af3cfcee60e762e4413027aa7372940f8bd8f977494e21a2e0520"
+    },
+    {
+      "appId": "cheeko.go-kaleido",
+      "title": "Kaleido",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-kaleido.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "52345d3665f1257c10d6179538198548fd70bed0b472420e2aa4ebdc15e5fe01"
+    },
+    {
+      "appId": "cheeko.go-coderain",
+      "title": "Code Rain",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-coderain.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "e3873866dcd8ea71188756f954dd0683d5d32ab81d1f38790cc6b3be85f7d08b"
+    },
+    {
+      "appId": "cheeko.go-beatgrid",
+      "title": "Beat Grid",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-beatgrid.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "fb1f625ea8022927f15641fd8993dbcf89c4f7bee972353bc5c9c234fef04391"
+    },
+    {
+      "appId": "cheeko.go-marble",
+      "title": "Marble Run",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-marble.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "8bdebbf184d90fad8f05ac25cf714b4ccd8284b39ab065b73b5ae4b9046c6dc0"
+    },
+    {
+      "appId": "cheeko.go-brickbash",
+      "title": "Brick Bash",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-brickbash.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "a02cce310097596cbe7abec8705269c90401194995d43f7879e3312d80bdd212"
+    },
+    {
+      "appId": "cheeko.go-dicecup",
+      "title": "Dice Cup",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-dicecup.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "0c8e8e8ce5f3286a8131f54aeb3750564910e39f12443eef0db9850f4d1d3043"
+    },
+    {
+      "appId": "cheeko.go-voicefx",
+      "title": "Silly Voice",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-voicefx.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "fa951f456a535b057d8b662b35716051f2b64ce1b0d0d3b5e2c2c12dfa258b78"
+    },
+    {
+      "appId": "cheeko.go-level",
+      "title": "Level Pro",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-level.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "8ce2c00581f2fc9b2a7604be3c6bde5a1e04660e11e8266dffafd2f8aa32f365"
+    },
+    {
+      "appId": "cheeko.go-boxer",
+      "title": "Shake Boxer",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-boxer.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "f88dc860eb60fabe633e82f68a8a269f3c0ca637a5ebad0426feb39d86eb6935"
+    },
+    {
+      "appId": "cheeko.go-orb",
+      "title": "Answer Orb",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-orb.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "fe6ab1ec16195ab873083e782d260cb904a301562d8ba9440db17edfc1b5c38e"
+    },
+    {
+      "appId": "cheeko.go-focus",
+      "title": "Focus Timer",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-focus.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "28d1924d61dcd60334c7365cc9d7c3b646ee6803274bc286e10f6c52bfe791e7"
+    },
+    {
+      "appId": "cheeko.go-paddle",
+      "title": "Paddle Duel",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-paddle.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "394a80a3674348f358d03f7983463035ee91cb9b927967ae4240337e0314e9e3"
+    },
+    {
+      "appId": "cheeko.go-fortune",
+      "title": "Fortune Cards",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-fortune.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "85e9be7e39252f61a84d712b47afe71e0869d5b18258a075f32dae06e261b355"
+    },
+    {
+      "appId": "cheeko.go-tempo",
+      "title": "Tempo Tuner",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-tempo.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "cd7d9ea41a0cd7d43de5420ca8c6370d28f8528311018cec49a05d9a15d91bf1"
+    },
+    {
+      "appId": "cheeko.go-casino",
+      "title": "Lucky Lounge",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-casino.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "89dacaf00a0485cc3e3a269f1574d802f7c8213a53ed81ca81389f075cf986ff"
+    },
+    {
+      "appId": "cheeko.go-tiles",
+      "title": "Beat Tiles",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-tiles.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "1f51aa6d1373ac56d7ad07a3e3395ed07c2b48290a0eae263a0fab7209c39206"
+    },
+    {
+      "appId": "cheeko.go-board",
+      "title": "Board Buddies",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-board.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "c9ea2ec69fd67c9ca5d4366f7127c15f6c8fcc4d5efd5e43ce67390c00f0b959"
+    },
+    {
+      "appId": "cheeko.go-puffhop",
+      "title": "Puff Hop",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-puffhop.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "d986957cb97e010f0291c225e2af2c31516a26068bc0548c20a17df36aedd89a"
+    },
+    {
+      "appId": "cheeko.go-forge",
+      "title": "Coin Forge",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-forge.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "fdbc07822ef0a7802797fef35f469c64c4819525f45f843753163a1ddc4343a3"
+    },
+    {
+      "appId": "cheeko.go-petri",
+      "title": "Petri",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-petri.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "b634ba9c72e44f4f1713ff10da23c0e4b9fd3d4ca5144015efc834c3c2bcb2b5"
+    },
+    {
+      "appId": "cheeko.go-echocave",
+      "title": "Echo Cave",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-echocave.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "96e47997ecfeba6515a699bf4baaa5bac798cd317252d6377e9138a26219986c"
+    },
+    {
+      "appId": "cheeko.go-fiveguess",
+      "title": "Five Guess",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-fiveguess.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "cc6cc3bd50cd35c1233db5c6f288ef3f9b30ba966cc0b9dab6f6d74f9e91d6b4"
+    },
+    {
+      "appId": "cheeko.go-merge",
+      "title": "Merge Cubes",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-merge.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "8c97c09f2b0bdf02babd3c80e05b1ea8febd3ffc05231cccda8961d9b1e7b476"
+    },
+    {
+      "appId": "cheeko.go-tilepairs",
+      "title": "Tile Pairs",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-tilepairs.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "0b73ff106e51c9edcd60e0e37ed027cb15b05d20eb10329966e7c2edd674ad86"
+    },
+    {
+      "appId": "cheeko.go-tunnel",
+      "title": "Tunnel Pilot",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-tunnel.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "c184b5badcdd24e7a31ede5dd8c15cc661b83254dc989b425c045c649667ad79"
+    },
+    {
+      "appId": "cheeko.go-starpatrol",
+      "title": "Star Patrol",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-starpatrol.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "c798c6e7c1e6e10e072cc45aefdd02bb7a867a680908a97bb4a87e38aae6468c"
+    },
+    {
+      "appId": "cheeko.go-ninegrid",
+      "title": "Nine Grid",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-ninegrid.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "c2406f895aa7e9f16b9e5bed0e98b87d919346191d6944467fd8f49c10429cdd"
+    },
+    {
+      "appId": "cheeko.go-minepatrol",
+      "title": "Mine Patrol",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-minepatrol.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "25cda70f112b367acc0b8ab4c05c635d772e9a740be319b5fc89b123ca4f14df"
+    },
+    {
+      "appId": "cheeko.go-pondcast",
+      "title": "Pond Cast",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-pondcast.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "28afeb25b9bb870dea7e5b501f147fe2e6df29b1306ec0804910ca9ae7608714"
+    },
+    {
+      "appId": "cheeko.go-cannonhill",
+      "title": "Cannon Hill",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-cannonhill.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "8c847689b49b20648af05dd58b200e7ded4b3abe6546064bbda40b1dfe1a479f"
+    },
+    {
+      "appId": "cheeko.go-gateguard",
+      "title": "Gate Guard",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-gateguard.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "f94202034df5957393e8657930113a3810ca878ac12d92529a38ea511b3609d4"
+    },
+    {
+      "appId": "cheeko.go-radar",
+      "title": "Treasure Radar",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-radar.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "f5e1367f74d523dc2ba5ad669e518ef93ae8c1c4811a56592c91d6fa463c6634"
+    },
+    {
+      "appId": "cheeko.go-calc",
+      "title": "Calculator",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-calc.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "125c03e3d988528febb46c19dd915f5635547a1d9e51a4a862360f3a98b579e5"
+    },
+    {
+      "appId": "cheeko.go-devinfo",
+      "title": "Gotchi Info",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-devinfo.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "31410ba2cb424544d1abc75059b0f82d692334f4b30f5b5cd9d3677f58fdc507"
+    },
+    {
+      "appId": "cheeko.go-ambient",
+      "title": "Calm Sounds",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-ambient.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "01a1e0819258b4aff17df5ba24a81719bc56807f9e493a49b7774c5b1383414f"
+    },
+    {
+      "appId": "cheeko.go-vubars",
+      "title": "VU Bars",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-vubars.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "9b407edef537ee53e98dca7e4575841a62d8782f3bcabf4f0e49c87c4a05608f"
+    },
+    {
+      "appId": "cheeko.go-notes",
+      "title": "Quick Notes",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-notes.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "444b62285eabcac23746f4f95a6ca518eef1df06cb9c7159f929b081176d61f5"
+    },
+    {
+      "appId": "cheeko.go-orbits",
+      "title": "Gravity Garden",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-orbits.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "655bb70063ddbc13999b0bdf072cebfd95305552e84832964fc9493e3b9f503e"
+    },
+    {
+      "appId": "cheeko.go-flipbook",
+      "title": "Flip Book",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-flipbook.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "66f9e843da16125981274e8878457036145c6cb7c71dcca274a7f14a526a6a27"
+    },
+    {
+      "appId": "cheeko.go-tinytasks",
+      "title": "Tiny Tasks",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-tinytasks.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "5842500f4702e24ce4aa613e372719f2c53f2c01bec2ab28b584565ca8370888"
+    },
+    {
+      "appId": "cheeko.go-namebadge",
+      "title": "Name Tag",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-namebadge.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "a2152a638058dd84ebcefd60a58679bf986f535bfa51ef5a626efa6a82f6dc9e"
+    },
+    {
+      "appId": "cheeko.go-morse",
+      "title": "Morse Trainer",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-morse.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "a3cce2f31d5ccca71f629510324ab29753cd56c5af386ab8ac4052a10966163f"
+    },
+    {
+      "appId": "cheeko.go-abc",
+      "title": "ABC Buddy",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-abc.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "9858f5c39ce6dda6dfff9d6f6dab870bc2e2241998cd36f3844bffa40a536311"
+    },
+    {
+      "appId": "cheeko.go-sixlines",
+      "title": "Six Lines",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-sixlines.bundle.bin",
+      "sizeBytes": 262144,
+      "sha256": "a206b531429282df86b08383e322b9c8894be7c95386eeec722a84b96346b67e"
+    },
+    {
+      "appId": "cheeko.go-pixelpad",
+      "title": "Pixel Pad",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-pixelpad.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "e3419de02e497fe4684021ad27f02addce233aa175714f799879c7c7f2d2d321"
+    },
+    {
+      "appId": "cheeko.go-julia",
+      "title": "Julia Drift",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-julia.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "a01d22cd7acc70742eb6a275c70e577831cda784e64b794a9e48b77fb3e4ed44"
+    },
+    {
+      "appId": "cheeko.go-memo",
+      "title": "Memo",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-memo.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "1dfe37eac881892aed2d2b114b26a156482c4465fa0bd4052716c3e824b48c8a"
+    },
+    {
+      "appId": "cheeko.go-scope",
+      "title": "Scope",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-scope.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "e86c8de67217667121fafea911672adb140693010dd191eb425c90439127490e"
+    },
+    {
+      "appId": "cheeko.go-sandglass",
+      "title": "Sand Glass",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys",
+          "sensor.acceleration"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-sandglass.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "0f6e631f4d46c1436fc85ac4c91c3f6851f6ce23e6cd662c224f09bc682b7a06"
+    },
+    {
+      "appId": "cheeko.go-cardcoach",
+      "title": "Card Coach",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-cardcoach.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "3b10d663d39fdbdeaaae4eb29e00a51c70d894a9c109b65e61e70da89cdd3a7e"
+    },
+    {
+      "appId": "cheeko.go-makercalc",
+      "title": "Maker Calc",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-makercalc.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "f449f19d6f551a5465710eaa640029070038b3c5f5a53cdeace993acde5730c8"
+    },
+    {
+      "appId": "cheeko.go-lapclock",
+      "title": "Lap Clock",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-lapclock.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "aed0ec677e03b1ba12196eeee17dca8ae2cb7e76652bc1448116ae4a86b895fa"
+    },
+    {
+      "appId": "cheeko.go-tally",
+      "title": "Tally",
+      "version": "0.1.0",
+      "summary": "",
+      "requirements": {
+        "schema_version": 1,
+        "display": {
+          "layouts": [
+            "square",
+            "portrait",
+            "landscape"
+          ],
+          "min_width": 240,
+          "min_height": 240
+        },
+        "required": [
+          "input.touch"
+        ],
+        "optional": [
+          "audio.output",
+          "input.keys"
+        ],
+        "any_of": [],
+        "services": {}
+      },
+      "target": "xtensa",
+      "file": "apps/go-tally.bundle.bin",
+      "sizeBytes": 196608,
+      "sha256": "1cffee87f909640e74e0ef68bb096107b8e2867629ef6b139361d9a1fa9b41e3"
     }
   ]
 }

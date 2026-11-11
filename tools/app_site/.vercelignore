@@ -3,3 +3,4 @@ build_apps.py
 build_firmware.py
 __pycache__
 design
+.env*

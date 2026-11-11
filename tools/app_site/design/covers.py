@@ -5,9 +5,9 @@ Each cover is a hand-drawn SVG scene: a Gotchi (296x240 screen) showing the
 app, on a colored background. Run: python3 design/covers.py
 """
 from pathlib import Path
-import subprocess, tempfile
+import os, subprocess, tempfile
 
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+CHROME = os.environ.get("CHROME", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
 
 OUT = Path(__file__).resolve().parents[1] / "covers"
 
@@ -112,9 +112,10 @@ def main():
         page = tmp / f"{app_id}.html"
         page.write_text(html)
         subprocess.run([CHROME, "--headless=new", "--hide-scrollbars", "--force-device-scale-factor=1",
-                        "--window-size=640,360", "--virtual-time-budget=3000",
+                        "--window-size=640,460", "--virtual-time-budget=3000",
                         f"--screenshot={OUT / (app_id + '.png')}", page.as_uri()],
                        check=True, capture_output=True)
+        subprocess.run(["magick", str(OUT / (app_id + '.png')), "-crop", "640x360+0+0", "+repage", str(OUT / (app_id + '.png'))], check=True)
         print("wrote", app_id)
 
 if __name__ == "__main__":
