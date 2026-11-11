@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 
 #include "audio_codec_ctrl_if.h"
@@ -11,6 +12,7 @@
 #include "driver/i2s_std.h"
 #include "esp_codec_dev.h"
 #include "platform/audio/audio_output_peripheral.hpp"
+#include "platform/audio/codec_i2c_control.hpp"
 
 namespace micropixel::platform::buses {
 class I2cExecutor;
@@ -29,6 +31,10 @@ struct I2sCodecAudioConfig final {
     gpio_num_t bit_clock{GPIO_NUM_NC};
     gpio_num_t word_select{GPIO_NUM_NC};
     gpio_num_t data_out{GPIO_NUM_NC};
+    // Optional ADC data line. When set, the same controller also gets a 16-bit
+    // four-slot TDM RX channel clocked by TX (full duplex) for a separate
+    // microphone codec; it is only clocked while TX runs.
+    gpio_num_t data_in{GPIO_NUM_NC};
     gpio_num_t amplifier_enable{GPIO_NUM_NC};
     AmplifierSetter amplifier_setter{};
     void* amplifier_context{};
@@ -61,6 +67,9 @@ class I2sCodecAudioSink : public AudioOutputPeripheral {
     void Shutdown() override;
     [[nodiscard]] const char* Name() const override { return config_.name; }
     [[nodiscard]] uint32_t SampleRate() const override { return config_.sample_rate; }
+    // Full-duplex RX channel, or null until Initialize() created it. The
+    // caller enables and disables it; Shutdown() deletes it.
+    [[nodiscard]] i2s_chan_handle_t InputChannel() const { return rx_.load(std::memory_order_acquire); }
 
    protected:
     [[nodiscard]] virtual const audio_codec_if_t* CreateCodec(const audio_codec_ctrl_if_t* control,
@@ -70,29 +79,15 @@ class I2sCodecAudioSink : public AudioOutputPeripheral {
    private:
     static constexpr uint32_t kMaximumChunkFrames = 128U;
 
-    struct CodecControl final {
-        audio_codec_ctrl_if_t interface{};
-        buses::I2cExecutor* executor{};
-        i2c_master_dev_handle_t device{};
-        uint8_t address{};
-        int port{};
-        bool open{};
-    };
-
     [[nodiscard]] int AmplifierLevel(bool enabled) const;
     [[nodiscard]] esp_err_t SetAmplifier(bool enabled) const;
     [[nodiscard]] esp_err_t FailInitialization(esp_err_t status);
-    static CodecControl& Control(const audio_codec_ctrl_if_t* interface);
-    static int ControlOpen(const audio_codec_ctrl_if_t* interface, void*, int);
-    static bool ControlIsOpen(const audio_codec_ctrl_if_t* interface);
-    static int ControlRead(const audio_codec_ctrl_if_t* interface, int reg, int reg_len, void* data, int data_len);
-    static int ControlWrite(const audio_codec_ctrl_if_t* interface, int reg, int reg_len, void* data, int data_len);
-    static int ControlClose(const audio_codec_ctrl_if_t* interface);
 
     I2sCodecAudioConfig config_{};
-    CodecControl control_{};
+    CodecI2cControl control_{};
     i2c_master_dev_handle_t codec_i2c_{};
     i2s_chan_handle_t tx_{};
+    std::atomic<i2s_chan_handle_t> rx_{};
     const audio_codec_data_if_t* data_if_{};
     const audio_codec_gpio_if_t* gpio_if_{};
     const audio_codec_if_t* codec_if_{};

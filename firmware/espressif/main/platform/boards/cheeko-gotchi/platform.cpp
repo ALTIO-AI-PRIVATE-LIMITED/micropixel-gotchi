@@ -5,7 +5,11 @@
 #include <cstdint>
 #include <expected>
 
+#include "device/contracts/power.hpp"
+#include "driver/gpio.h"
 #include "esp_check.h"
+#include "esp_sleep.h"
+#include "esp_timer.h"
 #include "esp_lcd_panel_ops.h"
 #include "esp_log.h"
 #include "esp_lv_adapter.h"
@@ -16,7 +20,10 @@
 #include "host/ui/lvgl/square_common/status_layer_transition.hpp"
 #include "platform/adapters/graphics_adapter.hpp"
 #include "platform/audio/audio_engine.hpp"
+#include "platform/audio/es7210_microphone.hpp"
 #include "platform/audio/es8311_i2s_audio_sink.hpp"
+#include "platform/bluetooth/ble_hid_keyboard.hpp"
+#include "platform/boards/cheeko-gotchi/battery_peripheral.hpp"
 #include "platform/boards/cheeko-gotchi/board_config.hpp"
 #include "platform/boards/cheeko-gotchi/board_hardware.hpp"
 #include "platform/boards/cheeko-gotchi/display_hardware.hpp"
@@ -34,6 +41,7 @@
 #include "platform/memory/internal_ram.hpp"
 #include "platform/transports/development_display_control.hpp"
 #include "platform/transports/usb_serial_jtag_local_control.hpp"
+#include "platform/wifi/esp_now_peer_radio.hpp"
 #include "platform/wifi/native_wifi_radio.hpp"
 #include "platform/wifi/wifi_manager.hpp"
 #include "work/task_policy.hpp"
@@ -55,8 +63,7 @@ static_assert(kHeight == ui_profile::Layout::kHeight);
 inline constexpr int kLvglTaskCore = task_policy::kSystemCore;
 inline constexpr graphics::SurfacePixelFormat kGuestSurfaceFormat = graphics::SurfacePixelFormat::kRgb565;
 inline constexpr int kStartupBrightnessPercent = 80;
-// ES8311 output only. The ES7210 microphones share the I2S bus but MicroPixel
-// has no capture contract, so they stay in reset.
+// ES8311 output and ES7210 capture share I2S0 in full duplex at one rate.
 inline constexpr uint32_t kAudioSampleRate = 16000U;
 
 // Board-owned input control stays in internal RAM, including the polled touch.
@@ -183,7 +190,7 @@ class CheekoGotchiPresentation final : public host_ui::lvgl::square_common::Squa
     audio::AudioEngine* audio_{};
 };
 
-class CheekoGotchiBoard final : public Board {
+class CheekoGotchiBoard final : public Board, public device::Power {
    public:
     CheekoGotchiBoard()
         : state_(TaskState(input_state_)),
@@ -237,6 +244,17 @@ class CheekoGotchiBoard final : public Board {
         if (audio_status != ESP_OK) {
             ESP_LOGW(kTag, "audio unavailable for this boot: %s", esp_err_to_name(audio_status));
         }
+        // Capture is clocked by the speaker path, so it needs that first.
+        const esp_err_t microphone_status = audio_status == ESP_OK
+                                                ? microphone_.Configure(hardware_.I2cBus(), state_.i2c_executor)
+                                                : ESP_ERR_INVALID_STATE;
+        if (microphone_status != ESP_OK) {
+            ESP_LOGW(kTag, "microphone unavailable for this boot: %s", esp_err_to_name(microphone_status));
+        }
+        const esp_err_t battery_status = battery_.Initialize();
+        if (battery_status != ESP_OK) {
+            ESP_LOGW(kTag, "battery monitor unavailable for this boot: %s", esp_err_to_name(battery_status));
+        }
         ESP_RETURN_ON_ERROR(boot_button_.Initialize(state_.ui.Input()), kTag, "initialize BOOT key failed");
         ESP_RETURN_ON_ERROR(volume_down_button_.Initialize(state_.ui.Input()), kTag, "initialize VOL- key failed");
         ESP_RETURN_ON_ERROR(volume_up_button_.Initialize(state_.ui.Input()), kTag, "initialize VOL+ key failed");
@@ -270,19 +288,104 @@ class CheekoGotchiBoard final : public Board {
         if (audio_status == ESP_OK) {
             registration.SetAudioOutput(audio_output_, audio_output_.SampleRate());
         }
+        if (battery_status == ESP_OK) {
+            registration.SetBattery(battery_);
+        }
+        registration.SetPower(*this);
         registration.SetWifi(wifi_);
         registration.SetLocalControl(state_.local_control);
         registration.SetSystemUi(system_ui_);
+        registration.SetHidKeyboard(hid_keyboard_);
+        // The BLE Link GATT service rides on the keyboard's host and connection.
+        hid_keyboard_.AttachLink(ble_link_);
+        registration.SetBleLink(ble_link_);
+        if (microphone_status == ESP_OK) {
+            registration.SetMicrophone(microphone_);
+        }
+        if (const esp_err_t radio_status = peer_radio_.Initialize(); radio_status == ESP_OK) {
+            registration.SetPeerRadio(peer_radio_);
+        } else {
+            ESP_LOGW(kTag, "peer radio unavailable for this boot: %s", esp_err_to_name(radio_status));
+        }
         bool registered = true;
         if (sensors_.acceleration_available()) {
             registered = registration.AddSensor(sensors_, board_detail::SensorPeripheral::kAcceleration,
                                                 "Built-in accelerometer") &&
                          registered;
         }
-        ESP_LOGI(kTag, "ready: JD9853 + %s, native Wi-Fi, audio=%s, accel=%s",
+        ESP_LOGI(kTag, "ready: JD9853 + %s, native Wi-Fi, audio=%s, mic=%s, accel=%s",
                  touch_status == ESP_OK ? "CST810" : "no touch", audio_status == ESP_OK ? "ES8311" : "off",
-                 sensors_.acceleration_available() ? "on" : "off");
+                 microphone_status == ESP_OK ? "ES7210" : "off", sensors_.acceleration_available() ? "on" : "off");
+        // Keep the keyboard pairable from boot, not only while its App is
+        // open, so a computer can find and reconnect to it at any time.
+        if (hid_keyboard_.Start() != MICROPIXEL_STATUS_OK) {
+            ESP_LOGW(kTag, "Bluetooth keyboard unavailable for this boot");
+        }
         return registered && context.Publish(registration) ? ESP_OK : ESP_ERR_INVALID_STATE;
+    }
+
+    // The Gotchi has no power key; the Host's idle timer is what puts it to sleep.
+    void SetPowerButtonSink(device::PowerButtonSink, void*) override {}
+    void SetPowerOffButtonSink(device::PowerOffButtonSink, void*) override {}
+
+    // Light sleep keeps RAM, so the running App picks up where it was on wake.
+    // Deep sleep would restart the chip and lose it.
+    [[nodiscard]] std::expected<void, device::PowerError> EnterLowPower() override {
+        if (esp_lv_adapter_sleep_prepare() != ESP_OK) {
+            return std::unexpected(device::PowerError::kDisplayPrepare);
+        }
+        (void)hardware_.SetBrightness(0);
+        esp_lcd_panel_handle_t panel = display_.Panel();
+        (void)esp_lcd_panel_disp_on_off(panel, false);
+        (void)esp_lcd_panel_disp_sleep(panel, true);
+        // The touch chip would keep scanning otherwise; the buttons wake instead.
+        if (const esp_err_t touch_status = display_.SleepTouch(); touch_status != ESP_OK) {
+            ESP_LOGW(kTag, "touch sleep failed: %s", esp_err_to_name(touch_status));
+        }
+
+        bool wake_armed = false;
+        for (const WakePin& wake : kWakePins) {
+            // Wake on the level opposite to the idle one, so a pin that idles
+            // high or low both work.
+            const int idle = gpio_get_level(wake.pin);
+            if (gpio_wakeup_enable(wake.pin, idle != 0 ? GPIO_INTR_LOW_LEVEL : GPIO_INTR_HIGH_LEVEL) == ESP_OK) {
+                wake_armed = true;
+            }
+        }
+        esp_err_t status = wake_armed ? esp_sleep_enable_gpio_wakeup() : ESP_ERR_INVALID_STATE;
+        if (status == ESP_OK) {
+            ESP_LOGI(kTag, "entering light sleep; BOOT and volume keys wake");
+            const int64_t started_us = esp_timer_get_time();
+            status = esp_light_sleep_start();
+            ESP_LOGI(kTag, "woke after %lld s: %s gpio=0x%llx", (esp_timer_get_time() - started_us) / 1000000LL,
+                     esp_err_to_name(status), static_cast<unsigned long long>(esp_sleep_get_gpio_wakeup_status()));
+        }
+        for (const WakePin& wake : kWakePins) {
+            (void)gpio_wakeup_disable(wake.pin);
+            (void)gpio_set_intr_type(wake.pin, wake.restore_intr);
+        }
+        (void)esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_GPIO);
+
+        // The reset pulse wakes the touch chip and reinitializes the panel.
+        if (const esp_err_t reset_status = display_.ResetAfterSleep(); reset_status != ESP_OK) {
+            ESP_LOGE(kTag, "display reset after sleep failed: %s", esp_err_to_name(reset_status));
+        }
+        (void)esp_lcd_panel_disp_on_off(panel, true);
+        if (esp_lv_adapter_sleep_recover(state_.display, panel, display_.PanelIo()) != ESP_OK) {
+            return std::unexpected(device::PowerError::kDisplayRestore);
+        }
+        if (!wake_armed) {
+            return std::unexpected(device::PowerError::kWakeSource);
+        }
+        return status == ESP_OK ? std::expected<void, device::PowerError>{}
+                                : std::unexpected(device::PowerError::kSleepRejected);
+    }
+
+    // No power switch to cut, so "off" is deep sleep until BOOT is pressed.
+    [[noreturn]] void PowerOff() override {
+        (void)hardware_.SetBrightness(0);
+        (void)esp_sleep_enable_ext1_wakeup_io(1ULL << board_detail::board::kBootButton, ESP_EXT1_WAKEUP_ANY_LOW);
+        esp_deep_sleep_start();
     }
 
     void BindBackgroundExecutor(work::BackgroundExecutor& executor) override {
@@ -292,6 +395,16 @@ class CheekoGotchiBoard final : public Board {
     }
 
    private:
+    struct WakePin final {
+        gpio_num_t pin;
+        gpio_int_type_t restore_intr;
+    };
+    static constexpr WakePin kWakePins[] = {
+        {board_detail::board::kBootButton, GPIO_INTR_ANYEDGE},
+        {board_detail::board::kVolumeDownButton, GPIO_INTR_ANYEDGE},
+        {board_detail::board::kVolumeUpButton, GPIO_INTR_ANYEDGE},
+    };
+
     static detail::CheekoGotchiState& TaskState(detail::CheekoGotchiInputState& input) {
         static MICROPIXEL_EXT_RAM_BSS detail::CheekoGotchiState state(input);
         return state;
@@ -317,8 +430,9 @@ class CheekoGotchiBoard final : public Board {
                                                 .bit_clock = board_detail::board::kI2sBitClock,
                                                 .word_select = board_detail::board::kI2sWordSelect,
                                                 .data_out = board_detail::board::kI2sDataOut,
+                                                .data_in = board_detail::board::kI2sDataIn,
                                                 .amplifier_enable = board_detail::board::kAmplifierEnable,
-                                                .codec_i2c_address = 0x18U,
+                                                .codec_i2c_address = board_detail::board::kSpeakerCodecAddress,
                                                 .sample_rate = detail::kAudioSampleRate,
                                                 .i2c_clock_hz = 100000U,
                                                 .amplifier_preroll_ms = 24U,
@@ -329,6 +443,17 @@ class CheekoGotchiBoard final : public Board {
                                             },
                                             // The NS4150B runs from the battery rail, above the codec's 3.3 V.
                                             {.amplifier_voltage = 5.0F, .codec_dac_voltage = 3.3F}};
+    audio::Es7210Microphone microphone_{{
+                                            .name = "Cheeko Gotchi ES7210",
+                                            .log_tag = "gotchi_mic",
+                                            .i2c_port = board_detail::board::kI2cPort,
+                                            .i2c_address = board_detail::board::kMicrophoneAdcAddress,
+                                            .i2c_clock_hz = 100000U,
+                                            .sample_rate = detail::kAudioSampleRate,
+                                            .default_gain_db = 30U,
+                                        },
+                                        audio_output_};
+    board_detail::BatteryPeripheral battery_{};
     CheekoGotchiPresentation presentation_;
     host_ui::lvgl::square_common::SquareSystemUi system_ui_;
     // Apps see the three front keys as confirm and left/right.
@@ -340,6 +465,12 @@ class CheekoGotchiBoard final : public Board {
         KeyConfig(board_detail::board::kVolumeUpButton, device::KeyCode::kRight, "gotchi_vol_up")};
     wifi::NativeWifiRadio wifi_radio_{};
     wifi::WifiManager wifi_{wifi_radio_};
+    // ESP-NOW link to a second Gotchi (walkie-talkie); idle until an App starts it.
+    wifi::EspNowPeerRadio peer_radio_{wifi_};
+    // App GATT link served next to the keyboard (iPhone Agent).
+    bluetooth::BleAppLink ble_link_{};
+    // Shared by the WisprKey, Chat Remote and iPhone Agent Apps; started at boot.
+    bluetooth::BleHidKeyboard hid_keyboard_{"CGotchi"};
 };
 
 }  // namespace

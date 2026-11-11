@@ -2524,9 +2524,16 @@ class ActiveHost final {
    private:
     enum class State { kHall, kForeground };
 
+    // Linked to an account. A build without a control service host (local
+    // development) has no account to link to, so it counts as linked instead
+    // of holding the Gotchi in first-run setup.
+    [[nodiscard]] bool Linked() const {
+        return CONFIG_MICROPIXEL_REMOTE_CONTROL_HOST[0] == '\0' || remote_control_.Bound();
+    }
+
     [[nodiscard]] bool CanLaunch() const {
         const AppLifecycleState lifecycle = app_controller_.state();
-        return staged_install_token_ == 0U && catalog_.count != 0U && remote_control_.Bound() &&
+        return staged_install_token_ == 0U && catalog_.count != 0U && Linked() &&
                (lifecycle == AppLifecycleState::kNotRunning || lifecycle == AppLifecycleState::kSuspended);
     }
 
@@ -3005,7 +3012,7 @@ class ActiveHost final {
                 return false;
             }
             case control::HostCommandType::kStartApp: {
-                if (!remote_control_.Bound()) {
+                if (!Linked()) {
                     SubmitRemoteResult(result, false, "device_not_linked");
                     return false;
                 }
@@ -3211,7 +3218,7 @@ class ActiveHost final {
             return true;
         }
         // Removed from its account (from the app): leave Settings for setup.
-        if (!modal && !remote_control_.Bound()) {
+        if (!modal && !Linked()) {
             return true;
         }
         if (!modal && ReadFirmwareUpdate(remote_control_).in_progress) {
@@ -3436,7 +3443,7 @@ class ActiveHost final {
         if (shell_.PowerTransitionRequested()) {
             return true;
         }
-        if (!remote_control_.Bound()) {
+        if (!Linked()) {
             return RunSetup();
         }
         if (!ShowCurrentHall()) {
@@ -3507,7 +3514,7 @@ class ActiveHost final {
             if (update.in_progress || update.available != hall_firmware_update_available_) {
                 return true;
             }
-            if (!remote_control_.Bound()) {
+            if (!Linked()) {
                 return true;
             }
             if (!pending_action.has_value()) {
@@ -4259,7 +4266,14 @@ HostController::HostController(device::DeviceServices& devices, runtime::AppStor
         },
         this);
     controls_.SetCommandReadySink(
-        [](void* context) { static_cast<host_ui::SystemShell*>(context)->NotifyRemoteCommandReady(); }, &shell_);
+        [](void* context) {
+            // A USB or remote command means someone is using the device, so it
+            // also holds off the idle sleep.
+            auto* shell = static_cast<host_ui::SystemShell*>(context);
+            shell->NotifyRemoteCommandReady();
+            shell->NotifyUserActivity();
+        },
+        &shell_);
     devices_.input().SetActivitySink(
         [](void* context) { static_cast<host_ui::SystemShell*>(context)->NotifyUserActivity(); }, &shell_);
     power_.SetPowerButtonSink(

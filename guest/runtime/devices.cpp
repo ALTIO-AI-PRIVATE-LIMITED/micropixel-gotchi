@@ -1,8 +1,13 @@
 #include "sdk/devices.hpp"
 
 #include "runtime/service_binding.hpp"
+#include "sdk/ble_link.hpp"
 #include "sdk/gpio.hpp"
 #include "sdk/haptics.hpp"
+#include "sdk/hid_keyboard.hpp"
+#include "sdk/microphone.hpp"
+#include "sdk/network.hpp"
+#include "sdk/peer_radio.hpp"
 #include "sdk/power_info.hpp"
 #include "sdk/sensors.hpp"
 
@@ -20,6 +25,131 @@ ServiceCache sensors_service;
 ServiceCache gpio_service;
 ServiceCache haptics_service;
 ServiceCache power_info_service;
+ServiceCache hid_keyboard_service;
+
+int32_t OpenHidKeyboardService() {
+    return OpenService(hid_keyboard_service, MICROPIXEL_SERVICE_HID_KEYBOARD, MICROPIXEL_HID_KEYBOARD_INTERFACE_MAJOR,
+                       MICROPIXEL_HID_KEYBOARD_INTERFACE_MINOR);
+}
+
+ServiceCache microphone_service;
+
+int32_t OpenMicrophoneService() {
+    return OpenService(microphone_service, MICROPIXEL_SERVICE_MICROPHONE, MICROPIXEL_MICROPHONE_INTERFACE_MAJOR,
+                       MICROPIXEL_MICROPHONE_INTERFACE_MINOR);
+}
+
+ServiceCache peer_radio_service;
+
+int32_t OpenPeerRadioService() {
+    return OpenService(peer_radio_service, MICROPIXEL_SERVICE_PEER_RADIO, MICROPIXEL_PEER_RADIO_INTERFACE_MAJOR,
+                       MICROPIXEL_PEER_RADIO_INTERFACE_MINOR);
+}
+
+micropixel::Result<void> PeerRadioVoid(uint32_t method_id, const void* request, uint32_t request_size) {
+    int32_t status = OpenPeerRadioService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(peer_radio_service, method_id, request, request_size);
+    }
+    return status == MICROPIXEL_STATUS_OK ? micropixel::Result<void>{}
+                                          : micropixel::Result<void>{micropixel::unexpected(ErrorFromStatus(status))};
+}
+
+micropixel::Result<void> VoidResult(int32_t status) {
+    return status == MICROPIXEL_STATUS_OK ? micropixel::Result<void>{}
+                                          : micropixel::Result<void>{micropixel::unexpected(ErrorFromStatus(status))};
+}
+
+ServiceCache ble_link_service;
+
+int32_t OpenBleLinkService() {
+    return OpenService(ble_link_service, MICROPIXEL_SERVICE_BLE_LINK, MICROPIXEL_BLE_LINK_INTERFACE_MAJOR,
+                       MICROPIXEL_BLE_LINK_INTERFACE_MINOR);
+}
+
+ServiceCache network_service;
+
+int32_t OpenNetworkService() {
+    return OpenService(network_service, MICROPIXEL_SERVICE_NETWORK, MICROPIXEL_NETWORK_INTERFACE_MAJOR,
+                       MICROPIXEL_NETWORK_INTERFACE_MINOR);
+}
+
+// Copies a NUL-terminated string into a fixed field; false when it does not fit.
+bool CopyText(char* destination, uint32_t capacity, const char* source) {
+    if (source == nullptr) {
+        return false;
+    }
+    uint32_t length = 0U;
+    while (source[length] != '\0') {
+        if (++length >= capacity) {
+            return false;
+        }
+    }
+    CopyBytes(destination, source, length + 1U);
+    return true;
+}
+
+micropixel::Result<uint32_t> NetworkHandleCall(uint32_t method_id, const void* request, uint32_t request_size) {
+    int32_t status = OpenNetworkService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return micropixel::unexpected(ErrorFromStatus(status));
+    }
+    micropixel_network_handle_message_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(network_service, method_id, request, request_size, &response, sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return micropixel::unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size != sizeof(response) || response.handle == 0U) {
+        micropixel::runtime::Panic("network.handle.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    return response.handle;
+}
+
+micropixel::Result<void> NetworkHandleVoid(uint32_t method_id, uint32_t handle) {
+    int32_t status = OpenNetworkService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_network_handle_message_t request{};
+        request.size = sizeof(request);
+        request.handle = handle;
+        status = CallVoid(network_service, method_id, &request, sizeof(request));
+    }
+    return VoidResult(status);
+}
+
+micropixel::Result<uint32_t> NetworkSend(uint32_t socket, const void* data, uint32_t length, uint32_t address,
+                                         uint16_t port) {
+    if (data == nullptr || length == 0U || socket == 0U) {
+        return micropixel::unexpected(micropixel::Error{micropixel::ErrorCode::kInvalidArgument});
+    }
+    if (length > micropixel::Network::kMaxTransfer) {
+        length = micropixel::Network::kMaxTransfer;
+    }
+    int32_t status = OpenNetworkService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return micropixel::unexpected(ErrorFromStatus(status));
+    }
+    alignas(4) static uint8_t request[sizeof(micropixel_network_send_request_t) + micropixel::Network::kMaxTransfer];
+    micropixel_network_send_request_t header{};
+    header.size = sizeof(header);
+    header.handle = socket;
+    header.length = length;
+    header.remote_address = address;
+    header.remote_port = port;
+    CopyBytes(request, &header, sizeof(header));
+    CopyBytes(request + sizeof(header), data, length);
+    micropixel_network_send_response_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(network_service, MICROPIXEL_NETWORK_METHOD_SEND, request, sizeof(header) + length, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return micropixel::unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size != sizeof(response) || response.sent > length) {
+        micropixel::runtime::Panic("network.send.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    return response.sent;
+}
 
 }  // namespace
 
@@ -476,6 +606,524 @@ Result<PowerState> PowerInfo::Get(DeviceId device) const {
                       (response.flags & MICROPIXEL_POWER_STATE_CHARGING) != 0U,
                       (response.flags & MICROPIXEL_POWER_STATE_DISCHARGING) != 0U,
                       (response.flags & MICROPIXEL_POWER_STATE_EXTERNAL_CONNECTED) != 0U};
+}
+
+Result<HidKeyboardState> HidKeyboard::State() const {
+    int32_t status = OpenHidKeyboardService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_hid_keyboard_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_GET_STATE, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    constexpr uint32_t kKnownFlags = MICROPIXEL_HID_KEYBOARD_STATE_AVAILABLE | MICROPIXEL_HID_KEYBOARD_STATE_STARTED |
+                                     MICROPIXEL_HID_KEYBOARD_STATE_ADVERTISING |
+                                     MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED;
+    if (response_size < sizeof(response) || response.size < sizeof(response) || response.reserved0 != 0U ||
+        (response.flags & ~kKnownFlags) != 0U) {
+        runtime::Panic("hid_keyboard.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    return HidKeyboardState{(response.flags & MICROPIXEL_HID_KEYBOARD_STATE_AVAILABLE) != 0U,
+                            (response.flags & MICROPIXEL_HID_KEYBOARD_STATE_STARTED) != 0U,
+                            (response.flags & MICROPIXEL_HID_KEYBOARD_STATE_ADVERTISING) != 0U,
+                            (response.flags & MICROPIXEL_HID_KEYBOARD_STATE_CONNECTED) != 0U};
+}
+
+Result<void> HidKeyboard::Start() const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_START, nullptr, 0U);
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> HidKeyboard::Key(HidKeyUsage usage, bool pressed, bool apple_fn) const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_hid_keyboard_key_request_t request{};
+        request.size = sizeof(request);
+        request.usage = static_cast<uint8_t>(usage);
+        request.pressed = pressed ? 1U : 0U;
+        request.flags = apple_fn ? static_cast<uint32_t>(MICROPIXEL_HID_KEYBOARD_KEY_APPLE_FN) : 0U;
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_KEY, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> HidKeyboard::Consumer(HidConsumerUsage usage, bool pressed) const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_hid_keyboard_consumer_request_t request{};
+        request.size = sizeof(request);
+        request.usage = static_cast<uint16_t>(usage);
+        request.pressed = pressed ? 1U : 0U;
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_CONSUMER, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> HidKeyboard::Mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8_t pan) const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_hid_keyboard_mouse_request_t request{};
+        request.size = sizeof(request);
+        request.buttons = buttons;
+        request.dx = dx;
+        request.dy = dy;
+        request.wheel = wheel;
+        request.pan = pan;
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_MOUSE, &request, sizeof(request));
+    }
+    return VoidResult(status);
+}
+
+Result<void> HidKeyboard::ForgetBonds() const {
+    int32_t status = OpenHidKeyboardService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(hid_keyboard_service, MICROPIXEL_HID_KEYBOARD_METHOD_FORGET_BONDS, nullptr, 0U);
+    }
+    return VoidResult(status);
+}
+
+Result<BleLinkState> BleLink::State() const {
+    int32_t status = OpenBleLinkService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_ble_link_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(ble_link_service, MICROPIXEL_BLE_LINK_METHOD_GET_STATE, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("ble_link.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    BleLinkState state{};
+    state.available = (response.flags & MICROPIXEL_BLE_LINK_STATE_AVAILABLE) != 0U;
+    state.started = (response.flags & MICROPIXEL_BLE_LINK_STATE_STARTED) != 0U;
+    state.connected = (response.flags & MICROPIXEL_BLE_LINK_STATE_CONNECTED) != 0U;
+    state.encrypted = (response.flags & MICROPIXEL_BLE_LINK_STATE_ENCRYPTED) != 0U;
+    state.reply_subscribed = (response.flags & MICROPIXEL_BLE_LINK_STATE_SUBSCRIBED_REPLY) != 0U;
+    state.status_subscribed = (response.flags & MICROPIXEL_BLE_LINK_STATE_SUBSCRIBED_STATUS) != 0U;
+    state.bulk_subscribed = (response.flags & MICROPIXEL_BLE_LINK_STATE_SUBSCRIBED_BULK) != 0U;
+    state.mtu = response.mtu;
+    state.bulk_payload = response.bulk_payload;
+    state.phy = response.phy;
+    state.peers = response.peers;
+    state.bulk_drops = response.bulk_drops;
+    state.reply_drops = response.reply_drops;
+    state.bulk_kbps = response.bulk_kbps;
+    return state;
+}
+
+Result<void> BleLink::Start() const {
+    int32_t status = OpenBleLinkService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(ble_link_service, MICROPIXEL_BLE_LINK_METHOD_START, nullptr, 0U);
+    }
+    return VoidResult(status);
+}
+
+Result<void> BleLink::Stop() const {
+    int32_t status = OpenBleLinkService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(ble_link_service, MICROPIXEL_BLE_LINK_METHOD_STOP, nullptr, 0U);
+    }
+    return VoidResult(status);
+}
+
+Result<BleLinkMessage> BleLink::Read(uint8_t (&data)[kMaxMessage]) const {
+    int32_t status = OpenBleLinkService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    using Header = micropixel_ble_link_read_response_t;
+    alignas(4) static uint8_t response[sizeof(Header) + kMaxMessage];
+    uint32_t response_size = 0U;
+    status = CallService(ble_link_service, MICROPIXEL_BLE_LINK_METHOD_READ, nullptr, 0U, response, sizeof(response),
+                         response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    Header header{};
+    if (response_size < sizeof(header)) {
+        runtime::Panic("ble_link.read.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(&header, response, sizeof(header));
+    if (header.size != sizeof(header) || header.length > kMaxMessage || response_size != sizeof(header) + header.length) {
+        runtime::Panic("ble_link.read.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(data, response + sizeof(header), header.length);
+    return BleLinkMessage{header.length, header.source == MICROPIXEL_BLE_LINK_SOURCE_VALUE, header.pending,
+                          header.dropped};
+}
+
+Result<void> BleLink::Notify(BleLinkChannel channel, const void* data, uint32_t length) const {
+    if (data == nullptr || length == 0U || length > kMaxMessage) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    int32_t status = OpenBleLinkService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        alignas(4) static uint8_t request[sizeof(micropixel_ble_link_notify_request_t) + kMaxMessage];
+        micropixel_ble_link_notify_request_t header{};
+        header.size = sizeof(header);
+        header.channel = static_cast<uint8_t>(channel);
+        header.length = static_cast<uint16_t>(length);
+        CopyBytes(request, &header, sizeof(header));
+        CopyBytes(request + sizeof(header), data, length);
+        status = CallVoid(ble_link_service, MICROPIXEL_BLE_LINK_METHOD_NOTIFY, request, sizeof(header) + length);
+    }
+    return VoidResult(status);
+}
+
+Result<void> BleLink::SetValue(const void* data, uint32_t length) const {
+    if ((data == nullptr && length != 0U) || length > kMaxValue) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    int32_t status = OpenBleLinkService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        alignas(4) uint8_t request[sizeof(micropixel_ble_link_value_request_t) + kMaxValue];
+        micropixel_ble_link_value_request_t header{};
+        header.size = sizeof(header);
+        header.length = static_cast<uint16_t>(length);
+        CopyBytes(request, &header, sizeof(header));
+        if (length != 0U) {
+            CopyBytes(request + sizeof(header), data, length);
+        }
+        status = CallVoid(ble_link_service, MICROPIXEL_BLE_LINK_METHOD_SET_VALUE, request, sizeof(header) + length);
+    }
+    return VoidResult(status);
+}
+
+Result<NetworkState> Network::State() const {
+    int32_t status = OpenNetworkService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_network_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(network_service, MICROPIXEL_NETWORK_METHOD_GET_STATE, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("network.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    NetworkState state{};
+    state.available = (response.flags & MICROPIXEL_NETWORK_STATE_AVAILABLE) != 0U;
+    state.station_connected = (response.flags & MICROPIXEL_NETWORK_STATE_STATION_CONNECTED) != 0U;
+    state.station_connecting = (response.flags & MICROPIXEL_NETWORK_STATE_STATION_CONNECTING) != 0U;
+    state.access_point = (response.flags & MICROPIXEL_NETWORK_STATE_ACCESS_POINT) != 0U;
+    state.channel = response.channel;
+    state.rssi = response.rssi;
+    state.access_point_stations = response.access_point_stations;
+    state.station_address = response.station_address;
+    state.access_point_address = response.access_point_address;
+    CopyBytes(state.mac, response.mac, sizeof(state.mac));
+    CopyBytes(state.station_ssid, response.station_ssid, sizeof(state.station_ssid) - 1U);
+    return state;
+}
+
+Result<void> Network::StartAccessPoint(const char* ssid, const char* password, uint8_t channel,
+                                       uint8_t max_stations) const {
+    micropixel_network_access_point_request_t request{};
+    request.size = sizeof(request);
+    request.channel = channel;
+    request.max_stations = max_stations;
+    if (!CopyText(request.ssid, sizeof(request.ssid), ssid) ||
+        !CopyText(request.password, sizeof(request.password), password)) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    int32_t status = OpenNetworkService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(network_service, MICROPIXEL_NETWORK_METHOD_ACCESS_POINT_START, &request, sizeof(request));
+    }
+    return VoidResult(status);
+}
+
+Result<void> Network::StopAccessPoint() const {
+    int32_t status = OpenNetworkService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(network_service, MICROPIXEL_NETWORK_METHOD_ACCESS_POINT_STOP, nullptr, 0U);
+    }
+    return VoidResult(status);
+}
+
+Result<uint32_t> Network::Advertise(const char* service, const char* instance, uint16_t port, const uint8_t* txt,
+                                    uint32_t txt_length, bool udp) const {
+    if (txt_length > kMaxTxt || (txt == nullptr && txt_length != 0U)) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    alignas(4) uint8_t request[sizeof(micropixel_network_advertise_request_t) + kMaxTxt];
+    micropixel_network_advertise_request_t header{};
+    header.size = sizeof(header);
+    header.port = port;
+    header.protocol = udp ? 1U : 0U;
+    header.txt_length = static_cast<uint16_t>(txt_length);
+    if (!CopyText(header.service, sizeof(header.service), service) ||
+        !CopyText(header.instance, sizeof(header.instance), instance)) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    CopyBytes(request, &header, sizeof(header));
+    if (txt_length != 0U) {
+        CopyBytes(request + sizeof(header), txt, txt_length);
+    }
+    return NetworkHandleCall(MICROPIXEL_NETWORK_METHOD_ADVERTISE, request, sizeof(header) + txt_length);
+}
+
+Result<void> Network::Withdraw(uint32_t advert) const {
+    return NetworkHandleVoid(MICROPIXEL_NETWORK_METHOD_WITHDRAW, advert);
+}
+
+Result<uint32_t> Network::Listen(uint16_t port) const {
+    micropixel_network_open_request_t request{};
+    request.size = sizeof(request);
+    request.kind = MICROPIXEL_NETWORK_SOCKET_TCP_LISTEN;
+    request.port = port;
+    return NetworkHandleCall(MICROPIXEL_NETWORK_METHOD_OPEN, &request, sizeof(request));
+}
+
+Result<uint32_t> Network::OpenUdp(uint16_t port) const {
+    micropixel_network_open_request_t request{};
+    request.size = sizeof(request);
+    request.kind = MICROPIXEL_NETWORK_SOCKET_UDP;
+    request.port = port;
+    return NetworkHandleCall(MICROPIXEL_NETWORK_METHOD_OPEN, &request, sizeof(request));
+}
+
+Result<NetworkAccepted> Network::Accept(uint32_t listener) const {
+    int32_t status = OpenNetworkService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_network_handle_message_t request{};
+    request.size = sizeof(request);
+    request.handle = listener;
+    micropixel_network_accept_response_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(network_service, MICROPIXEL_NETWORK_METHOD_ACCEPT, &request, sizeof(request), &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size != sizeof(response) || response.handle == 0U) {
+        runtime::Panic("network.accept.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    return NetworkAccepted{response.handle, response.remote_address, response.remote_port, response.local_address};
+}
+
+Result<NetworkReceived> Network::Receive(uint32_t socket, void* data, uint32_t capacity) const {
+    if (data == nullptr || capacity == 0U || socket == 0U) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    if (capacity > kMaxTransfer) {
+        capacity = kMaxTransfer;
+    }
+    int32_t status = OpenNetworkService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    using Header = micropixel_network_receive_response_t;
+    micropixel_network_receive_request_t request{};
+    request.size = sizeof(request);
+    request.handle = socket;
+    request.max_length = capacity;
+    alignas(4) static uint8_t response[sizeof(Header) + kMaxTransfer];
+    uint32_t response_size = 0U;
+    status = CallService(network_service, MICROPIXEL_NETWORK_METHOD_RECEIVE, &request, sizeof(request), response,
+                         sizeof(Header) + capacity, response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    Header header{};
+    if (response_size < sizeof(header)) {
+        runtime::Panic("network.receive.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(&header, response, sizeof(header));
+    if (header.size != sizeof(header) || header.length > capacity || response_size != sizeof(header) + header.length) {
+        runtime::Panic("network.receive.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(data, response + sizeof(header), header.length);
+    return NetworkReceived{header.length, (header.flags & MICROPIXEL_NETWORK_TRANSFER_CLOSED) != 0U,
+                           header.remote_address, header.remote_port};
+}
+
+Result<uint32_t> Network::Send(uint32_t socket, const void* data, uint32_t length) const {
+    return NetworkSend(socket, data, length, 0U, 0U);
+}
+
+Result<uint32_t> Network::SendTo(uint32_t socket, const void* data, uint32_t length, uint32_t address,
+                                 uint16_t port) const {
+    return NetworkSend(socket, data, length, address, port);
+}
+
+Result<void> Network::Close(uint32_t socket) const { return NetworkHandleVoid(MICROPIXEL_NETWORK_METHOD_CLOSE, socket); }
+
+Result<MicrophoneInfo> Microphone::Info() const {
+    int32_t status = OpenMicrophoneService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_microphone_info_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(microphone_service, MICROPIXEL_MICROPHONE_METHOD_GET_INFO, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("microphone.info.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    return MicrophoneInfo{(response.flags & MICROPIXEL_MICROPHONE_FLAG_AVAILABLE) != 0U,
+                          (response.flags & MICROPIXEL_MICROPHONE_FLAG_STARTED) != 0U, response.sample_rate,
+                          response.frame_samples};
+}
+
+Result<void> Microphone::Start(uint8_t gain_db) const {
+    int32_t status = OpenMicrophoneService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        micropixel_microphone_start_request_t request{};
+        request.size = sizeof(request);
+        request.gain_db = gain_db;
+        status = CallVoid(microphone_service, MICROPIXEL_MICROPHONE_METHOD_START, &request, sizeof(request));
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<void> Microphone::Stop() const {
+    int32_t status = OpenMicrophoneService();
+    if (status == MICROPIXEL_STATUS_OK) {
+        status = CallVoid(microphone_service, MICROPIXEL_MICROPHONE_METHOD_STOP, nullptr, 0U);
+    }
+    return status == MICROPIXEL_STATUS_OK ? Result<void>{} : Result<void>{unexpected(ErrorFromStatus(status))};
+}
+
+Result<uint32_t> Microphone::Read(int16_t* samples, uint32_t max_samples) const {
+    if (samples == nullptr || max_samples == 0U || max_samples > kMaxReadSamples) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    int32_t status = OpenMicrophoneService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_microphone_read_request_t request{};
+    request.size = sizeof(request);
+    request.max_samples = max_samples;
+    // Header plus samples in one response; not zero-initialised.
+    alignas(4) uint8_t response[sizeof(micropixel_microphone_read_response_t) + kMaxReadSamples * sizeof(int16_t)];
+    uint32_t response_size = 0U;
+    status = CallService(microphone_service, MICROPIXEL_MICROPHONE_METHOD_READ, &request, sizeof(request), response,
+                         sizeof(micropixel_microphone_read_response_t) + max_samples * sizeof(int16_t),
+                         response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_microphone_read_response_t header{};
+    if (response_size < sizeof(header)) {
+        runtime::Panic("microphone.read.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(&header, response, sizeof(header));
+    if (header.size != sizeof(header) || header.sample_count > max_samples ||
+        response_size != sizeof(header) + header.sample_count * sizeof(int16_t)) {
+        runtime::Panic("microphone.read.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(samples, response + sizeof(header), header.sample_count * sizeof(int16_t));
+    return header.sample_count;
+}
+
+Result<PeerRadioState> PeerRadio::State() const {
+    int32_t status = OpenPeerRadioService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    micropixel_peer_radio_state_t response{};
+    uint32_t response_size = 0U;
+    status = CallService(peer_radio_service, MICROPIXEL_PEER_RADIO_METHOD_GET_STATE, nullptr, 0U, &response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    if (response_size < sizeof(response) || response.size < sizeof(response)) {
+        runtime::Panic("peer_radio.state.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    PeerRadioState state{};
+    state.available = (response.flags & MICROPIXEL_PEER_RADIO_STATE_AVAILABLE) != 0U;
+    state.started = (response.flags & MICROPIXEL_PEER_RADIO_STATE_STARTED) != 0U;
+    state.paired = (response.flags & MICROPIXEL_PEER_RADIO_STATE_PAIRED) != 0U;
+    state.peer_present = (response.flags & MICROPIXEL_PEER_RADIO_STATE_PEER_PRESENT) != 0U;
+    state.pairing = (response.flags & MICROPIXEL_PEER_RADIO_STATE_PAIRING) != 0U;
+    state.on_wifi_channel = (response.flags & MICROPIXEL_PEER_RADIO_STATE_WIFI_CHANNEL) != 0U;
+    state.channel = response.channel;
+    state.peer_rssi = response.peer_rssi;
+    CopyBytes(state.self_address, response.self_address, sizeof(state.self_address));
+    CopyBytes(state.peer_address, response.peer_address, sizeof(state.peer_address));
+    state.packets_sent = response.packets_sent;
+    state.packets_received = response.packets_received;
+    state.send_failures = response.send_failures;
+    return state;
+}
+
+Result<void> PeerRadio::Start() const { return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_START, nullptr, 0U); }
+
+Result<void> PeerRadio::Stop() const { return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_STOP, nullptr, 0U); }
+
+Result<void> PeerRadio::BeginPairing() const {
+    return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_PAIR_BEGIN, nullptr, 0U);
+}
+
+Result<void> PeerRadio::Accept(const uint8_t (&address)[6]) const {
+    micropixel_peer_radio_accept_request_t request{};
+    request.size = sizeof(request);
+    CopyBytes(request.address, address, sizeof(request.address));
+    return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_PAIR_ACCEPT, &request, sizeof(request));
+}
+
+Result<void> PeerRadio::Forget() const { return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_FORGET, nullptr, 0U); }
+
+Result<void> PeerRadio::Send(const void* data, uint32_t length) const {
+    if (data == nullptr || length == 0U || length > kMaxPayload) {
+        return unexpected(Error{ErrorCode::kInvalidArgument});
+    }
+    alignas(4) uint8_t request[sizeof(micropixel_peer_radio_send_request_t) + kMaxPayload];
+    micropixel_peer_radio_send_request_t header{};
+    header.size = sizeof(header);
+    header.length = static_cast<uint16_t>(length);
+    CopyBytes(request, &header, sizeof(header));
+    CopyBytes(request + sizeof(header), data, length);
+    return PeerRadioVoid(MICROPIXEL_PEER_RADIO_METHOD_SEND, request, sizeof(header) + length);
+}
+
+Result<PeerPacket> PeerRadio::Receive(uint8_t (&data)[kMaxPayload]) const {
+    int32_t status = OpenPeerRadioService();
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    using Header = micropixel_peer_radio_receive_response_t;
+    alignas(4) uint8_t response[sizeof(Header) + kMaxPayload];
+    uint32_t response_size = 0U;
+    status = CallService(peer_radio_service, MICROPIXEL_PEER_RADIO_METHOD_RECEIVE, nullptr, 0U, response,
+                         sizeof(response), response_size);
+    if (status != MICROPIXEL_STATUS_OK) {
+        return unexpected(ErrorFromStatus(status));
+    }
+    Header header{};
+    if (response_size < sizeof(header)) {
+        runtime::Panic("peer_radio.receive.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(&header, response, sizeof(header));
+    if (header.size != sizeof(header) || header.length > kMaxPayload ||
+        response_size != sizeof(header) + header.length) {
+        runtime::Panic("peer_radio.receive.response", MICROPIXEL_STATUS_INTERNAL);
+    }
+    CopyBytes(data, response + sizeof(header), header.length);
+    return PeerPacket{header.length, header.rssi, header.pending, header.dropped};
 }
 
 }  // namespace micropixel

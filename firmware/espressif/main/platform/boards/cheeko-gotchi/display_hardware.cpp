@@ -5,6 +5,8 @@
 
 #include "driver/spi_master.h"
 #include "esp_check.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_lcd_io_i2c.h"
 #include "esp_lcd_io_spi.h"
 #include "esp_lcd_panel_ops.h"
@@ -90,19 +92,7 @@ esp_err_t DisplayHardware::InitializePanel() {
     panel_config.reset_gpio_num = board::kLcdReset;
     status = NewJd9853Panel(panel_io_, panel_config, &panel_);
     if (status == ESP_OK) {
-        status = esp_lcd_panel_reset(panel_);
-    }
-    if (status == ESP_OK) {
-        status = esp_lcd_panel_init(panel_);
-    }
-    if (status == ESP_OK) {
-        status = esp_lcd_panel_swap_xy(panel_, kSwapXy);
-    }
-    if (status == ESP_OK) {
-        status = esp_lcd_panel_mirror(panel_, kMirrorX, kMirrorY);
-    }
-    if (status == ESP_OK) {
-        status = esp_lcd_panel_set_gap(panel_, kColumnGap, 0);
+        status = ConfigurePanel();
     }
     if (status != ESP_OK) {
         ReleasePanel(true);
@@ -111,6 +101,33 @@ esp_err_t DisplayHardware::InitializePanel() {
     ESP_LOGI(kTag, "JD9853 %dx%d panel uses internal SRAM SPI DMA: block=%d bytes clock=%lu MHz",
              static_cast<int>(board::kDisplayWidth), static_cast<int>(board::kDisplayHeight), transfer_bytes,
              static_cast<unsigned long>(kLcdPixelClockHz / 1000000U));
+    return ESP_OK;
+}
+
+esp_err_t DisplayHardware::ConfigurePanel() {
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_reset(panel_), kTag, "panel reset failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_init(panel_), kTag, "panel init failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_swap_xy(panel_, kSwapXy), kTag, "panel swap failed");
+    ESP_RETURN_ON_ERROR(esp_lcd_panel_mirror(panel_, kMirrorX, kMirrorY), kTag, "panel mirror failed");
+    return esp_lcd_panel_set_gap(panel_, kColumnGap, 0);
+}
+
+esp_err_t DisplayHardware::SleepTouch() {
+    if (touch_io_ == nullptr) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    // CST8xx sleep-mode register: 0x03 is deep sleep.
+    constexpr uint8_t kDeepSleep = 0x03U;
+    return esp_lcd_panel_io_tx_param(touch_io_, 0xE5, &kDeepSleep, 1);
+}
+
+esp_err_t DisplayHardware::ResetAfterSleep() {
+    if (panel_ == nullptr) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    ESP_RETURN_ON_ERROR(ConfigurePanel(), kTag, "panel restore failed");
+    // Give the CST810 time to boot from the reset before it is polled again.
+    vTaskDelay(pdMS_TO_TICKS(60));
     return ESP_OK;
 }
 

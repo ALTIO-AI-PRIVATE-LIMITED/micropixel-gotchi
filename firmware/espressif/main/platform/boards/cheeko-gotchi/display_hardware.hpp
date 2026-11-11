@@ -14,12 +14,17 @@ class DisplayHardware final {
    public:
     [[nodiscard]] esp_err_t InitializePanel();
     [[nodiscard]] esp_err_t InitializeTouch(i2c_master_bus_handle_t bus);
+    // Puts the CST810 into deep sleep; only a reset pulse wakes it again.
+    [[nodiscard]] esp_err_t SleepTouch();
+    // Pulses the shared reset (waking the CST810) and re-runs the panel setup.
+    [[nodiscard]] esp_err_t ResetAfterSleep();
 
     [[nodiscard]] esp_lcd_panel_handle_t Panel() const { return panel_; }
     [[nodiscard]] esp_lcd_panel_io_handle_t PanelIo() const { return panel_io_; }
     [[nodiscard]] esp_lcd_touch_handle_t Touch() const { return touch_; }
 
    private:
+    [[nodiscard]] esp_err_t ConfigurePanel();
     void ReleasePanel(bool bus_initialized);
 
     esp_lcd_panel_handle_t panel_{};

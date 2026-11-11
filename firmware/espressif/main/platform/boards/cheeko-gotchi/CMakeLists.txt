@@ -1,4 +1,5 @@
 list(APPEND micropixel_sources
+    "platform/boards/cheeko-gotchi/battery_peripheral.cpp"
     "platform/boards/cheeko-gotchi/board_hardware.cpp"
     "platform/boards/cheeko-gotchi/cst810_touch.cpp"
     "platform/boards/cheeko-gotchi/display_hardware.cpp"

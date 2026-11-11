@@ -60,7 +60,7 @@ class ServiceRegistry final {
                                  uint32_t length) const;
 
    private:
-    static constexpr uint32_t kMaxServiceCount = 16U;
+    static constexpr uint32_t kMaxServiceCount = 20U;
 
     [[nodiscard]] bool Resolve(micropixel_service_handle_t service_handle, ServiceHandler*& handler_out,
                                const ServiceDescriptor*& descriptor_out) const;

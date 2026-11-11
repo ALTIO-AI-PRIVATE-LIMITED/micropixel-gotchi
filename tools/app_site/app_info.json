@@ -1,0 +1,673 @@
+{
+  "cheeko.devcon-wall": {
+    "summary": "Line up nine Gotchis in a 3x3 frame and they play the DevCon 8 India logo animation together as one big screen.",
+    "about": "Each Gotchi shows its own slice of one 888x720 animation. On first start you pick its spot (1 to 9, row by row from the top left). The Gotchis keep each other in step over their own radio, so no Wi-Fi or router is needed. Tap a screen to see its spot and a sync dot: green means it hears the others.",
+    "why": "Made for the DevCon India booth, to show what a group of small Gotchis can do together.",
+    "needs": ["9 Gotchis for the full wall (fewer still works, each shows its own tile)", "The same Gotchi firmware on every unit", "Best with Wi-Fi turned off on all of them"],
+    "kind": "Group display"
+  },
+  "cheeko.walkie-talkie": {
+    "summary": "Push-to-talk voice between two Gotchis, like a real walkie-talkie. No phone, no Wi-Fi.",
+    "about": "Hold VOL+ (or the TALK circle) to talk and let go to listen, with a roger beep at the end. Double-tap to ring the other Gotchi. VOL- changes the volume. The voice goes straight from one Gotchi to the other over their built-in radio.",
+    "why": "A fun way for kids to talk across rooms, and a showcase of the Gotchi microphone, speaker and radio working together.",
+    "needs": ["2 Gotchis with Walkie-Talkie installed", "Pair once: press BOOT on both, check the 4-digit codes match, press BOOT again"],
+    "kind": "Two Gotchis"
+  },
+  "cheeko.peer-test": {
+    "summary": "Pairs two Gotchis and pings between them twice a second, showing delay, lost packets and signal strength.",
+    "about": "Press BOOT (or tap) on both to pair, then accept when the code shows. The screen shows round-trip time, packet loss and signal strength live. VOL- forgets the pairing.",
+    "why": "A quick check that the radio link between two Gotchis is healthy before using Walkie-Talkie or DevCon Wall.",
+    "needs": ["2 Gotchis with Radio Test installed"],
+    "kind": "Two Gotchis · Tool"
+  },
+  "cheeko.mic-test": {
+    "summary": "Records three seconds from the Gotchi microphone and plays it straight back.",
+    "about": "Tap the screen, BOOT or VOL+ to record. After three seconds the Gotchi plays the recording through its speaker, so you can hear how the mic sounds.",
+    "why": "A simple check that the microphone and speaker work, for example after a firmware update.",
+    "needs": ["Nothing extra"],
+    "kind": "Tool"
+  },
+  "cheeko.wispr-key": {
+    "summary": "Turns the Gotchi into a set of big buttons for Wispr Flow voice typing on your Mac.",
+    "about": "Swipe left or right to pick an action, then press the circle: hold to talk, dictate, Command Mode and more. The Gotchi acts as a Bluetooth keyboard named CGotchi. VOL- sends Enter and VOL+ jumps to the next action.",
+    "why": "Voice typing is faster with one physical button on your desk than with keyboard shortcuts.",
+    "needs": ["A Mac with Wispr Flow", "Pair the Mac with the Bluetooth keyboard \"CGotchi\"", "Command Mode also needs the WisprKey rule in Karabiner-Elements"],
+    "kind": "Mac companion"
+  },
+  "cheeko.chat-remote": {
+    "summary": "One tap brings WhatsApp or WeChat to the front on your Mac. The other tiles change the volume.",
+    "about": "Tapping a chat tile opens that app on the paired Mac through Spotlight. The volume tiles and the VOL-/VOL+ keys send the Mac's media volume keys. It uses the same Bluetooth pairing as WisprKey, so if one works, both do.",
+    "why": "A tiny desk remote for the chats you open all day.",
+    "needs": ["A Mac paired with the Bluetooth keyboard \"CGotchi\"", "WhatsApp and/or WeChat installed on the Mac"],
+    "kind": "Mac companion"
+  },
+  "cheeko.iphone-agent": {
+    "summary": "Mirrors your iPhone screen onto the Gotchi and lets the Gotchi act as the phone's mouse and keyboard.",
+    "about": "The iPhone sends its screen to the Gotchi over AirPlay. The Gotchi connects back over Bluetooth as a mouse and keyboard, so a phone app can see the screen and tap through it. It is based on the open-source ESP32 iPhone Agent by Henry Yuan.",
+    "why": "An experiment in letting a small device see and drive a phone, the starting point for a phone agent.",
+    "needs": ["An iPhone with the ESP32 Agent app", "iPhone and Gotchi on the same Wi-Fi for AirPlay", "AssistiveTouch on the iPhone to see the pointer"],
+    "kind": "Phone companion · Experimental"
+  },
+  "micropixel.polygon-benchmark": {
+    "summary": "Draws waves of triangles and squares and measures how many frames per second the Gotchi manages.",
+    "about": "Runs through several drawing tests one after another and shows the frame rate of each. App developers use it to see how much 3D-style drawing fits on the device.",
+    "why": "For developers, to know how fast games and animations can run before they build them.",
+    "needs": ["Nothing extra"],
+    "kind": "Developer tool"
+  },
+  "lovelyhim.ball-fall": {
+    "summary": "Steer a golden ball down an endless shaft and land on the next platform before the red line catches you.",
+    "about": "Hold the left or right side of the screen to steer. The platforms keep rising, and touching the red line at the top or falling out of the bottom ends the run. Simple to play, hard to master.",
+    "why": "A quick one-thumb game to see how deep you can go.",
+    "needs": ["Nothing extra"],
+    "kind": "Game"
+  },
+  "micropixel.jump-jump": {
+    "summary": "Hold to charge, release to jump. Land on the centre of each platform to build a streak.",
+    "about": "The longer you hold, the further you jump. Landing dead centre doubles your points and keeps the streak going. Some platforms hide bonuses.",
+    "why": "A classic one-button game that suits the Gotchi's touch screen.",
+    "needs": ["Nothing extra"],
+    "kind": "Game"
+  },
+  "com.lckfb.jump": {
+    "summary": "Jump Jump in 3D: original-style jumping, 17 random bonus platforms with their own animations and sounds.",
+    "about": "Hold to charge and release to jump between 3D platforms. Bonus platforms give extra points with their own effects.",
+    "why": "A 3D take on Jump Jump from the MicroPixel community.",
+    "needs": ["Nothing extra"],
+    "kind": "Game"
+  },
+  "cheeko.port-cardlife": {
+    "summary": "A living cellular world that grows, dies and evolves on your screen.",
+    "about": "A cellular automaton with the original rules: a cell survives with 2 or 3 neighbours and is born with 3 or 7. Tap to nuke the world and reseed it, press BOOT to change the cell size.",
+    "why": "Ported to the Gotchi from Mystereon's open source project.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Simulation",
+    "cover": "covers/cheeko.port-cardlife.png",
+    "credit": {"by": "Mystereon", "repo": "https://github.com/Mystereon/CardLife", "license": "CC0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/port-cardlife"}
+  },
+  "cheeko.port-slot-machine": {
+    "summary": "A three reel slot machine. Tap to spin, tap to stop each reel.",
+    "about": "Same reel order and spin physics as the original, with the symbols redrawn. Credits are play money only and refill when you run out. There is nothing to buy and nothing to win.",
+    "why": "Ported to the Gotchi from Sarah-C's open source project.",
+    "needs": ["Just a Gotchi", "Speaker for the sound effects"],
+    "kind": "Game",
+    "cover": "covers/cheeko.port-slot-machine.png",
+    "credit": {"by": "Sarah-C", "repo": "https://github.com/Sarah-C/M5StickC_Plus_Slot_Machine", "license": "MIT", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/port-slot-machine"}
+  },
+  "cheeko.port-mandelbrot": {
+    "summary": "Tap anywhere to dive into the Mandelbrot set.",
+    "about": "Each tap zooms in by two on that point. The picture appears in two passes, coarse then fine. VOL+ zooms out, VOL- changes the palette, BOOT resets the view. Drawn in 4 pixel blocks, so it is chunkier than the original.",
+    "why": "Ported to the Gotchi from mbogatyr's open source project.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Art",
+    "cover": "covers/cheeko.port-mandelbrot.png",
+    "credit": {"by": "mbogatyr", "repo": "https://github.com/mbogatyr/M5Fractal", "license": "MIT", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/port-mandelbrot"}
+  },
+  "cheeko.port-spectrum": {
+    "summary": "See the sound around you as live bars from 100 Hz to 8 kHz.",
+    "about": "Listens to the microphone, runs a 512 point FFT and shows 32 logarithmic bands with falling peak marks. Tap or press a key to change the colors. The audio is never stored or sent anywhere.",
+    "why": "Ported to the Gotchi from mbogatyr's open source project.",
+    "needs": ["Uses the Gotchi microphone"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.port-spectrum.png",
+    "credit": {"by": "mbogatyr", "repo": "https://github.com/mbogatyr/M5SpectrumAnalyzer", "license": "MIT", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/port-spectrum"}
+  },
+  "cheeko.port-hourglass": {
+    "summary": "A sand timer with real particle physics. Tilt it and the sand follows.",
+    "about": "Uses the original 300 particle simulation unchanged. Tap to restart, BOOT to switch between 1, 0.5, 3 and 5 minutes. Turn the Gotchi upside down to flip the glass.",
+    "why": "Ported to the Gotchi from oliverxing2025's open source project.",
+    "needs": ["Uses the Gotchi accelerometer"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.port-hourglass.png",
+    "credit": {"by": "oliverxing2025", "repo": "https://github.com/oliverxing2025/VibeStick-Hourglass-Liquid", "license": "MIT", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/port-hourglass"}
+  },
+  "cheeko.port-voice-recorder": {
+    "summary": "Record a 20 second voice note and play it back.",
+    "about": "Records one take at 16 kHz using the original ADPCM codec. The original saves WAV files, but Gotchi apps have no file storage, so this take lives in memory and is gone when you close the app.",
+    "why": "Ported to the Gotchi from mbogatyr's open source project.",
+    "needs": ["Uses the Gotchi microphone and speaker"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.port-voice-recorder.png",
+    "credit": {"by": "mbogatyr", "repo": "https://github.com/mbogatyr/M5VoiceRecorder", "license": "MIT", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/port-voice-recorder"}
+  },
+  "cheeko.go-runner": {
+    "summary": "Run across a city skyline and leap the gaps between roofs.",
+    "about": "Tap or press BOOT to jump, tap again in the air for a double jump. The city speeds up the longer you last, and your best distance is saved.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-runner.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-runner"}
+  },
+  "cheeko.go-botface": {
+    "summary": "A little robot face that follows your finger and has moods.",
+    "about": "Touch the screen and the eyes follow. Tap to change mood between happy, sleepy, surprised, grumpy and in love. Shake it and it gets dizzy.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Accelerometer for the dizzy trick"],
+    "kind": "Companion",
+    "cover": "covers/cheeko.go-botface.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-botface"}
+  },
+  "cheeko.go-stackdrop": {
+    "summary": "Fit falling shapes into full lines before the well fills up.",
+    "about": "Tap left or right to move, the middle to turn, swipe down to drop. The set mixes small three-cell pieces in with the bigger ones, and it gets faster as you clear lines.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-stackdrop.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-stackdrop"}
+  },
+  "cheeko.go-party": {
+    "summary": "Three quick games for a group passing one Gotchi around.",
+    "about": "Hot Bomb: pass it on before the hidden fuse runs out. Quick Draw: two players, first to tap when the screen goes green. Tap Race: ten seconds, left side against right. BOOT returns to the menu.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["One Gotchi and some friends", "Speaker for the sound"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-party.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-party"}
+  },
+  "cheeko.go-synth": {
+    "summary": "Play a touch keyboard with four sounds.",
+    "about": "Two octaves of keys with soft, buzzy, flute and noise sounds, and an octave shift on the plus and minus buttons. Slide along the keys to glide. One note plays at a time.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Needs the speaker"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.go-synth.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-synth"}
+  },
+  "cheeko.go-noodle": {
+    "summary": "Steer a growing noodle to the dumplings.",
+    "about": "Swipe to turn, or use the volume keys to turn left and right. Every dumpling makes you longer and faster. Do not hit the walls or yourself.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-noodle.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-noodle"}
+  },
+  "cheeko.go-blobpal": {
+    "summary": "Raise a little blob from an egg to fully grown.",
+    "about": "Warm the egg until it hatches, then feed it, play ball, put it to bed and clean up after it. Its food, joy, rest and age are saved on the Gotchi. Time only passes while the app is open, because apps cannot read a real clock.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Saves your pet on the Gotchi"],
+    "kind": "Companion",
+    "cover": "covers/cheeko.go-blobpal.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-blobpal"}
+  },
+  "cheeko.go-kaleido": {
+    "summary": "A drifting kaleidoscope you can stir with a finger.",
+    "about": "Drag to spin the pattern, tap for new colours and shapes, press BOOT to freeze the frame.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Art",
+    "cover": "covers/cheeko.go-kaleido.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-kaleido"}
+  },
+  "cheeko.go-coderain": {
+    "summary": "Falling glyphs and broken-signal screensavers.",
+    "about": "Three moving screens: green falling code, a signal glitch and retro colour bars. Tap to change between them.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Art",
+    "cover": "covers/cheeko.go-coderain.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-coderain"}
+  },
+  "cheeko.go-beatgrid": {
+    "summary": "A step drum machine with a beat already loaded.",
+    "about": "Tap cells to place kick, snare, hat and blip hits, then press Play. Change the tempo with the plus and minus buttons from 60 to 200 BPM. It uses the Gotchi tone generator, so stacked hits may share one voice.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Needs the speaker"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.go-beatgrid.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-beatgrid"}
+  },
+  "cheeko.go-marble": {
+    "summary": "Tilt the Gotchi to roll a marble through a maze to the hole.",
+    "about": "Every level is a freshly generated maze. If you do not want to tilt, hold your finger on the screen and the marble rolls toward it. BOOT makes a new maze.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi accelerometer", "Touch works too"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-marble.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-marble"}
+  },
+  "cheeko.go-brickbash": {
+    "summary": "Bounce a ball through walls of coloured bricks.",
+    "about": "Drag the paddle, tilt the Gotchi, or use the volume keys. Three lives, and each level has a new brick pattern. Tap to serve.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-brickbash.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-brickbash"}
+  },
+  "cheeko.go-dicecup": {
+    "summary": "Roll one to six dice and see the total.",
+    "about": "Tap or shake to roll, and use plus and minus to change how many dice are in the cup. Handy for board games when the dice have gone missing.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Accelerometer for shake to roll"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-dicecup.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-dicecup"}
+  },
+  "cheeko.go-voicefx": {
+    "summary": "Record three seconds and hear it four silly ways.",
+    "about": "Hold the top bar and talk, then pick an effect to play it back changed. There are also four sound effect buttons. Your recording stays in memory only and goes when you close the app.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi microphone", "Needs the speaker"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.go-voicefx.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-voicefx"}
+  },
+  "cheeko.go-level": {
+    "summary": "A bubble level, an edge angle gauge and a motion meter.",
+    "about": "Lay it flat for the bubble, stand it on an edge for the angle, or watch the motion meter count shakes. Tap to switch and press BOOT to set zero on a known surface. Use it for hanging pictures, not for building a house.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi accelerometer"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-level.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-level"}
+  },
+  "cheeko.go-boxer": {
+    "summary": "Box a trainer by flicking the Gotchi when the guard drops.",
+    "about": "Punch by flicking the Gotchi or tapping when it says OPEN. When a glove is coming, lean the way it tells you. Volume keys dodge if you would rather not lean.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi accelerometer", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-boxer.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-boxer"}
+  },
+  "cheeko.go-orb": {
+    "summary": "Ask a question out loud, then shake or tap for an answer.",
+    "about": "A glowing orb gives one of twenty-two answers written just for it. Do not make serious decisions with it.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Accelerometer for shake"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.go-orb.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-orb"}
+  },
+  "cheeko.go-focus": {
+    "summary": "A work and break timer with a ring that counts down.",
+    "about": "Pick 25/5, 50/10 or 15/3 minutes. Tap the ring to start or pause, and it chimes at the end of each round. Finished rounds are counted and saved. Volume keys add or remove a minute.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the chime"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-focus.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-focus"}
+  },
+  "cheeko.go-paddle": {
+    "summary": "Paddle tennis for two thumbs, or against the computer.",
+    "about": "Tap the left half at the start to play the computer or the right half for two players. Each player drags on their own side of the screen. The ball speeds up with every return.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Two players or just you", "Speaker for the sound"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-paddle.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-paddle"}
+  },
+  "cheeko.go-fortune": {
+    "summary": "Draw three cards for what was, what is and what comes next.",
+    "about": "A 22-card deck written and drawn just for this app. Tap to turn a card, tap again to read it. For fun only.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.go-fortune.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-fortune"}
+  },
+  "cheeko.go-tempo": {
+    "summary": "A metronome with tap tempo and a tuner that names your note.",
+    "about": "Set the speed with plus and minus or tap in time. The tuner listens through the microphone and shows the nearest note and how sharp or flat you are. Check it against a real tuner before a concert.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi microphone", "Needs the speaker"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-tempo.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-tempo"}
+  },
+  "cheeko.go-casino": {
+    "summary": "Slots, high or low and a spin wheel with play chips.",
+    "about": "Three small table games sharing one chip pile. Chips refill for free when you run out. There is nothing to buy and nothing to win.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your chips on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-casino.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-casino"}
+  },
+  "cheeko.go-tiles": {
+    "summary": "Tap the four lanes as tiles reach the line and play a tune.",
+    "about": "Each hit plays the next note of one of three tunes written for this app. Six misses ends the song and the speed keeps climbing.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Needs the speaker", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-tiles.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-tiles"}
+  },
+  "cheeko.go-board": {
+    "summary": "Three in a row, drop four and flip field against the Gotchi.",
+    "about": "Three classic style board games with a computer opponent that blocks your wins and likes corners. BOOT goes back to the menu. Two Gotchis cannot play each other yet.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-board.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-board"}
+  },
+  "cheeko.go-puffhop": {
+    "summary": "Flutter a puffball through the gaps.",
+    "about": "Tap to flap upward. The gaps come faster as your score climbs, and one bump ends the run.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-puffhop.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-puffhop"}
+  },
+  "cheeko.go-forge": {
+    "summary": "Tap to mint coins and buy machines that mint for you.",
+    "about": "Four kinds of helpers keep producing while the app is open, and everything is saved. Apps cannot run when closed, so it does not earn while the Gotchi is off.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Saves your forge on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-forge.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-forge"}
+  },
+  "cheeko.go-petri": {
+    "summary": "Paint living cells and watch them spread, die and settle.",
+    "about": "Classic life rules on a wrapping 74 by 56 world. Draw with your finger, BOOT pauses, VOL+ changes speed and VOL- reseeds.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Simulation",
+    "cover": "covers/cheeko.go-petri.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-petri"}
+  },
+  "cheeko.go-echocave": {
+    "summary": "Choose your way through a cave of fights and treasure.",
+    "about": "A compact choose your path story with health, gold and one important lantern. It takes about five minutes to finish.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-echocave.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-echocave"}
+  },
+  "cheeko.go-fiveguess": {
+    "summary": "Find the hidden five-letter word in six tries.",
+    "about": "Green means right place, yellow means wrong place. It has about a hundred words of its own and accepts any five letters as a guess, because a full dictionary will not fit.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-fiveguess.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-fiveguess"}
+  },
+  "cheeko.go-merge": {
+    "summary": "Slide the board to merge equal numbers.",
+    "about": "Swipe in any direction and matching numbers combine. Your best score is saved.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-merge.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-merge"}
+  },
+  "cheeko.go-tilepairs": {
+    "summary": "Clear a two-layer table by matching free tiles.",
+    "about": "A tile is free when nothing sits on it and one side is open. Each table is dealt in reverse from a solved position, so it can always be cleared, but your choices can still get you stuck.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-tilepairs.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-tilepairs"}
+  },
+  "cheeko.go-tunnel": {
+    "summary": "Fly through gates as the tunnel rushes at you.",
+    "about": "A small flight game drawn as flat rings. Tilt to steer, or drag if you prefer. Miss three gates and it is over. This is an arcade game, not a real flight simulator.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi accelerometer", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-tunnel.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-tunnel"}
+  },
+  "cheeko.go-starpatrol": {
+    "summary": "Clear wave after wave of incoming ships.",
+    "about": "Drag, tilt or use the volume keys to move. Your ship fires by itself and the waves get faster.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-starpatrol.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-starpatrol"}
+  },
+  "cheeko.go-ninegrid": {
+    "summary": "Fill every row, column and box with 1 to 9.",
+    "about": "Tap a square, then a number. Mistakes turn red. BOOT changes difficulty and deals a new puzzle. Some puzzles can have more than one answer, and any valid answer counts.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-ninegrid.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-ninegrid"}
+  },
+  "cheeko.go-minepatrol": {
+    "summary": "Open the field without touching a mine.",
+    "about": "26 mines hidden in a 16 by 11 field, shown as coloured dots that count nearby mines. Turn on Flag to mark squares.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-minepatrol.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-minepatrol"}
+  },
+  "cheeko.go-pondcast": {
+    "summary": "Cast a line, wait for the dip and reel without snapping it.",
+    "about": "Six fish to catch, from small minnows to one very old whiskered giant. Hold to reel and let go when the tension gets too high.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your catch count"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-pondcast.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-pondcast"}
+  },
+  "cheeko.go-cannonhill": {
+    "summary": "Lob shells over the hills at the computer's cannon.",
+    "about": "Pull back to aim, let go to fire, watch the wind, and blast craters in the hill. Three hits wins.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-cannonhill.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-cannonhill"}
+  },
+  "cheeko.go-gateguard": {
+    "summary": "Build towers along the road and stop the waves.",
+    "about": "Three tower types: Bolt for steady damage, Frost to slow, Bomb for groups. Tap a pad to build or upgrade, then press Next wave.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Keeps your best score on the Gotchi"],
+    "kind": "Game",
+    "cover": "covers/cheeko.go-gateguard.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-gateguard"}
+  },
+  "cheeko.go-radar": {
+    "summary": "A sweeping radar prop with a hot and cold game.",
+    "about": "Blips appear on the sweep for fun. Tap the screen to hunt the hidden spot and it tells you hot or cold. It is a prop. It does not sense anything real.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.go-radar.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-radar"}
+  },
+  "cheeko.go-calc": {
+    "summary": "Add, subtract, multiply, divide, percent and sign.",
+    "about": "A simple calculator with big buttons. It works with ordinary decimal arithmetic, so very long results get rounded.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-calc.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-calc"}
+  },
+  "cheeko.go-devinfo": {
+    "summary": "See battery, charging, uptime, tilt and sound level at once.",
+    "about": "A one screen health check for your Gotchi. Handy for testing a new unit.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Reads the battery and microphone"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-devinfo.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-devinfo"}
+  },
+  "cheeko.go-ambient": {
+    "summary": "Rain, ocean, wind and fire made live on the Gotchi.",
+    "about": "All four sounds are generated by the app rather than played from recordings, so they never loop. Set a 15, 30 or 60 minute sleep timer.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Needs the speaker"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.go-ambient.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-ambient"}
+  },
+  "cheeko.go-vubars": {
+    "summary": "A needle meter and live sound bars from the microphone.",
+    "about": "Shows how loud it is and where the sound sits from bass to treble. Nothing is recorded or sent anywhere. For a finer view, Spectrum Analyzer has more bands.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi microphone"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.go-vubars.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-vubars"}
+  },
+  "cheeko.go-notes": {
+    "summary": "Type up to eight short notes on the screen keyboard.",
+    "about": "Tap New note and type, tap a note twice to edit it. Notes stay on the Gotchi until you delete them.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Saves notes on the Gotchi"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-notes.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-notes"}
+  },
+  "cheeko.go-orbits": {
+    "summary": "Launch planets and watch them orbit, slingshot and crash.",
+    "about": "Drag back and let go to launch. Simple gravity toward one star does the rest. BOOT clears the sky.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.go-orbits.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-orbits"}
+  },
+  "cheeko.go-flipbook": {
+    "summary": "Draw six frames and play them back as a little animation.",
+    "about": "Each frame shows a faint copy of the one before it. Your drawings stay on the Gotchi. It plays only the animations you draw, because apps cannot load video files.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Saves drawings on the Gotchi"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.go-flipbook.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-flipbook"}
+  },
+  "cheeko.go-tinytasks": {
+    "summary": "A short to-do list you tick off with a tap.",
+    "about": "Up to ten tasks typed on the screen keyboard. Tap to tick, tap the x to remove.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Saves tasks on the Gotchi"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-tinytasks.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-tinytasks"}
+  },
+  "cheeko.go-namebadge": {
+    "summary": "Wear your name in big letters at meetups.",
+    "about": "Type your name and a line about yourself once, then tap to change between four looks.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Saves your name on the Gotchi"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-namebadge.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-namebadge"}
+  },
+  "cheeko.go-morse": {
+    "summary": "See a letter, key it with short and long presses.",
+    "about": "A short press is a dot and a long press is a dash. Wait a moment and it checks your answer. Press a volume key for a hint.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Needs the speaker", "Keeps your best score on the Gotchi"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-morse.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-morse"}
+  },
+  "cheeko.go-abc": {
+    "summary": "Learn letters with pictures, then play find the letter.",
+    "about": "Twenty-six letters with simple drawn pictures and a quiz mode for little ones. It does not speak the words, because the app has no recordings.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound"],
+    "kind": "Learning",
+    "cover": "covers/cheeko.go-abc.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-abc"}
+  },
+  "cheeko.go-sixlines": {
+    "summary": "Toss coins six times to build a figure and read its trigrams.",
+    "about": "Inspired by coin divination from the I Ching. It reads only the upper and lower trigrams, with short lines written for this app. A bit of fun, not a full reading.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Accelerometer for shake"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.go-sixlines.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-sixlines"}
+  },
+  "cheeko.go-pixelpad": {
+    "summary": "Paint tiny pixel art with your finger.",
+    "about": "A 32 by 34 canvas with eight colours. Your picture saves itself on the Gotchi.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Saves your picture on the Gotchi"],
+    "kind": "Art",
+    "cover": "covers/cheeko.go-pixelpad.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-pixelpad"}
+  },
+  "cheeko.go-julia": {
+    "summary": "A fractal that slowly changes shape as you watch.",
+    "about": "Drag to steer its shape, tap for new colours. Drawn in chunky 8 pixel blocks so it can keep moving.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Art",
+    "cover": "covers/cheeko.go-julia.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-julia"}
+  },
+  "cheeko.go-memo": {
+    "summary": "Hold to record eight seconds, tap to hear it back.",
+    "about": "A very small voice memo. The recording stays in memory only and goes when you close the app. For 20 seconds at better quality, use Voice Recorder.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi microphone", "Needs the speaker"],
+    "kind": "Audio",
+    "cover": "covers/cheeko.go-memo.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-memo"}
+  },
+  "cheeko.go-scope": {
+    "summary": "See the sound wave from the microphone.",
+    "about": "A simple oscilloscope view of the microphone only. Tap to freeze, volume keys change gain, and the bottom bar changes the time scale. It is not a measuring instrument.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi microphone"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-scope.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-scope"}
+  },
+  "cheeko.go-sandglass": {
+    "summary": "Watch real grains of sand fall through a glass.",
+    "about": "Each grain is simulated. Turn the Gotchi over and it runs the other way, or lean it and the sand piles to one side. Tap to refill. It is a toy, not a precise timer.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Uses the Gotchi accelerometer"],
+    "kind": "Toy",
+    "cover": "covers/cheeko.go-sandglass.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-sandglass"}
+  },
+  "cheeko.go-cardcoach": {
+    "summary": "Flash cards where the ones you miss come back sooner.",
+    "about": "Three built-in decks. Tap to turn a card over, then say if you knew it. Hindi numbers are written in English letters, because the Gotchi font has no Hindi characters.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Learning",
+    "cover": "covers/cheeko.go-cardcoach.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-cardcoach"}
+  },
+  "cheeko.go-makercalc": {
+    "summary": "Resistor colour bands, Ohm's law and LED resistor sums.",
+    "about": "Tap the bands to read a resistor, change voltage and current to get resistance, or work out the resistor for an LED. Double check anything you are going to power up.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-makercalc.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-makercalc"}
+  },
+  "cheeko.go-lapclock": {
+    "summary": "A stopwatch with laps and an interval timer for workouts.",
+    "about": "Lap times show the last four. Intervals switch between work and rest with a beep each time.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-lapclock.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-lapclock"}
+  },
+  "cheeko.go-tally": {
+    "summary": "Four big counters for scores, stock or anything.",
+    "about": "Tap to add one and use the small minus to take one back. BOOT clears all four. Counts stay on the Gotchi.",
+    "why": "Written from scratch for the Gotchi.",
+    "needs": ["Just a Gotchi", "Speaker for the sound", "Saves your counts on the Gotchi"],
+    "kind": "Tool",
+    "cover": "covers/cheeko.go-tally.png",
+    "credit": {"own": true, "by": "Altio AI", "repo": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi", "license": "Apache-2.0", "source": "https://github.com/ALTIO-AI-PRIVATE-LIMITED/micropixel-gotchi/tree/app-manager/guest/apps/go-tally"}
+  }
+}

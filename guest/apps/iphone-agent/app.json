@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "app_id": "cheeko.iphone-agent",
+  "version": "0.1.0",
+  "threading": "none",
+  "title": "iPhone Agent",
+  "sources": [
+    "airplay/fairplay.c",
+    "airplay/handlers.c",
+    "airplay/mdns.c",
+    "airplay/mirror.c",
+    "airplay/pairing.c",
+    "airplay/playfair/hand_garble.c",
+    "airplay/playfair/modified_md5.c",
+    "airplay/playfair/omg_hax.c",
+    "airplay/playfair/playfair.c",
+    "airplay/playfair/sap_hash.c",
+    "airplay/rtsp.c",
+    "airplay_host.cpp",
+    "alloc_bridge.cpp",
+    "bplist/bplist.c",
+    "libc_shim.c",
+    "main.cpp",
+    "vendor/monocypher/monocypher-ed25519.c",
+    "vendor/monocypher/monocypher.c",
+    "vendor/tiny-aes/aes.c",
+    "video/gop.c"
+  ],
+  "requirements": {
+    "schema_version": 1,
+    "display": {
+      "layouts": [
+        "square",
+        "portrait",
+        "landscape"
+      ],
+      "min_width": 240,
+      "min_height": 240
+    },
+    "required": [],
+    "optional": [
+      "input.keys"
+    ],
+    "any_of": [],
+    "services": {}
+  }
+}

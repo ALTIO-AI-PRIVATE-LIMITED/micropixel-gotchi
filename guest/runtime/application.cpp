@@ -102,6 +102,93 @@ bool Application::DecodeEventInternal(Event& event, uint64_t timeout_us) const {
         return true;
     }
 
+    if (raw.service_id == MICROPIXEL_SERVICE_MICROPHONE && raw.event_id == MICROPIXEL_MICROPHONE_EVENT_FRAMES) {
+        micropixel_microphone_event_payload_t payload{};
+        CopyBytes(&payload, raw.payload, sizeof(payload));
+        if (payload.reserved0[0] != 0U || payload.reserved0[1] != 0U || raw.status != MICROPIXEL_STATUS_OK) {
+            runtime::Panic("application.wait_event.microphone_payload", MICROPIXEL_STATUS_INTERNAL);
+        }
+        event = Event{MicrophoneEvent{timestamp, payload.available_samples, payload.dropped_samples}};
+        return true;
+    }
+
+    if (raw.service_id == MICROPIXEL_SERVICE_BLE_LINK) {
+        micropixel_ble_link_event_payload_t payload{};
+        CopyBytes(&payload, raw.payload, sizeof(payload));
+        BleLinkEvent link{};
+        link.timestamp_ = timestamp;
+        link.flags_ = payload.flags;
+        link.pending_ = payload.pending;
+        EventType type = EventType::kUnknown;
+        if (raw.event_id == MICROPIXEL_BLE_LINK_EVENT_INBOX) {
+            type = EventType::kBleLinkInbox;
+            link.kind_ = BleLinkEventKind::kInbox;
+        } else if (raw.event_id == MICROPIXEL_BLE_LINK_EVENT_STATE) {
+            type = EventType::kBleLinkState;
+            link.kind_ = BleLinkEventKind::kState;
+        } else if (raw.event_id == MICROPIXEL_BLE_LINK_EVENT_ROOM) {
+            type = EventType::kBleLinkRoom;
+            link.kind_ = BleLinkEventKind::kRoom;
+        }
+        if (type != EventType::kUnknown) {
+            event = Event{type, link};
+            return true;
+        }
+    }
+
+    if (raw.service_id == MICROPIXEL_SERVICE_NETWORK) {
+        NetworkEvent network{};
+        network.timestamp_ = timestamp;
+        EventType type = EventType::kUnknown;
+        if (raw.event_id == MICROPIXEL_NETWORK_EVENT_READY) {
+            micropixel_network_ready_event_payload_t payload{};
+            CopyBytes(&payload, raw.payload, sizeof(payload));
+            type = EventType::kNetworkReady;
+            network.kind_ = NetworkEventKind::kReady;
+            network.socket_ = payload.handle;
+        } else if (raw.event_id == MICROPIXEL_NETWORK_EVENT_STATE) {
+            micropixel_network_state_event_payload_t payload{};
+            CopyBytes(&payload, raw.payload, sizeof(payload));
+            type = EventType::kNetworkState;
+            network.kind_ = NetworkEventKind::kState;
+            network.flags_ = payload.flags;
+        }
+        if (type != EventType::kUnknown) {
+            event = Event{type, network};
+            return true;
+        }
+    }
+
+    if (raw.service_id == MICROPIXEL_SERVICE_PEER_RADIO) {
+        PeerRadioEvent peer{};
+        peer.timestamp_ = timestamp;
+        EventType type = EventType::kUnknown;
+        if (raw.event_id == MICROPIXEL_PEER_RADIO_EVENT_PACKET) {
+            type = EventType::kPeerPacket;
+            peer.kind_ = PeerRadioEventKind::kPacket;
+        } else if (raw.event_id == MICROPIXEL_PEER_RADIO_EVENT_STATE) {
+            micropixel_peer_radio_state_event_payload_t payload{};
+            CopyBytes(&payload, raw.payload, sizeof(payload));
+            type = EventType::kPeerState;
+            peer.kind_ = PeerRadioEventKind::kState;
+            peer.flags_ = payload.flags;
+            peer.channel_ = payload.channel;
+            peer.rssi_ = payload.peer_rssi;
+        } else if (raw.event_id == MICROPIXEL_PEER_RADIO_EVENT_PAIR_CANDIDATE) {
+            micropixel_peer_radio_candidate_event_payload_t payload{};
+            CopyBytes(&payload, raw.payload, sizeof(payload));
+            type = EventType::kPeerCandidate;
+            peer.kind_ = PeerRadioEventKind::kCandidate;
+            peer.code_ = payload.code;
+            peer.rssi_ = payload.rssi;
+            CopyBytes(peer.address_, payload.address, sizeof(peer.address_));
+        }
+        if (type != EventType::kUnknown) {
+            event = Event{type, peer};
+            return true;
+        }
+    }
+
     if (raw.service_id == MICROPIXEL_SERVICE_GRAPHICS && raw.event_id == MICROPIXEL_GRAPHICS_EVENT_SURFACE_RELEASED) {
         micropixel_surface_event_payload_t payload{};
         CopyBytes(&payload, raw.payload, sizeof(payload));

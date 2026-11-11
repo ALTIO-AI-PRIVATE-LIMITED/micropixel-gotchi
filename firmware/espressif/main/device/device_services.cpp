@@ -133,6 +133,71 @@ void HapticsService::SetCompletionSink(HapticCompletionSink sink, void* context)
     implementation_.SetCompletionSink(sink, context);
 }
 
+micropixel_hid_keyboard_state_t HidKeyboardService::GetState() const {
+    micropixel_hid_keyboard_state_t state{};
+    state.size = sizeof(state);
+    state.flags = implementation_.StateFlags();
+    return state;
+}
+
+DeviceResult<void> HidKeyboardService::Start() const { return StatusResult(implementation_.Start()); }
+
+DeviceResult<void> HidKeyboardService::Key(uint8_t usage, bool pressed, uint32_t flags) const {
+    return StatusResult(implementation_.Key(usage, pressed, flags));
+}
+
+DeviceResult<void> HidKeyboardService::Consumer(uint16_t usage, bool pressed) const {
+    return StatusResult(implementation_.Consumer(usage, pressed));
+}
+
+DeviceResult<void> HidKeyboardService::Mouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel, int8_t pan) const {
+    return StatusResult(implementation_.Mouse(buttons, dx, dy, wheel, pan));
+}
+
+DeviceResult<void> HidKeyboardService::ForgetBonds() const { return StatusResult(implementation_.ForgetBonds()); }
+
+DeviceResult<void> BleLinkService::Start(const BleLinkCallbacks& callbacks) const {
+    return StatusResult(implementation_.Start(callbacks));
+}
+
+DeviceResult<void> BleLinkService::Stop() const { return StatusResult(implementation_.Stop()); }
+
+DeviceResult<void> BleLinkService::Queue(uint8_t channel, const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.Queue(channel, data, length));
+}
+
+DeviceResult<void> BleLinkService::SendBulk(const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.SendBulk(data, length));
+}
+
+DeviceResult<void> BleLinkService::SetValue(const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.SetValue(data, length));
+}
+
+DeviceResult<void> MicrophoneService::Start(MicrophoneSampleSink sink, void* context, uint8_t gain_db) const {
+    return StatusResult(implementation_.Start(sink, context, gain_db));
+}
+
+DeviceResult<void> MicrophoneService::Stop() const { return StatusResult(implementation_.Stop()); }
+
+DeviceResult<void> PeerRadioService::Start(const PeerRadioCallbacks& callbacks) const {
+    return StatusResult(implementation_.Start(callbacks));
+}
+
+DeviceResult<void> PeerRadioService::Stop() const { return StatusResult(implementation_.Stop()); }
+
+DeviceResult<void> PeerRadioService::BeginPairing() const { return StatusResult(implementation_.BeginPairing()); }
+
+DeviceResult<void> PeerRadioService::AcceptPeer(const uint8_t (&address)[6]) const {
+    return StatusResult(implementation_.AcceptPeer(address));
+}
+
+DeviceResult<void> PeerRadioService::Forget() const { return StatusResult(implementation_.Forget()); }
+
+DeviceResult<void> PeerRadioService::Send(const uint8_t* data, uint32_t length) const {
+    return StatusResult(implementation_.Send(data, length));
+}
+
 DeviceResult<micropixel_power_info_t> PowerInfoService::Get(micropixel_device_id_t device) {
     micropixel_device_info_t device_info{};
     const int32_t device_status = devices_.GetById(device, device_info);

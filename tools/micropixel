@@ -1643,6 +1643,24 @@ def _guest_file_identity(path: Path) -> dict[str, Any]:
     return {"path": str(path.resolve()), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
 
 
+GUEST_CXX_ONLY_FLAGS = {"-fno-exceptions", "-fno-rtti", "-fno-threadsafe-statics"}
+
+
+def _guest_c_command(command: list[str]) -> list[str]:
+    """The C++ compile command turned into C (gnu11, so POSIX/BSD declarations
+    such as strtok_r stay visible) for `.c` sources (vendored C libraries):
+    same target, sysroot and warnings, minus -Werror, since third-party C is
+    not held to the Guest's own C++ warning bar. The Guest links no libc; an
+    App that uses malloc or snprintf provides them."""
+    result: list[str] = []
+    for argument in command:
+        if argument.startswith("-std="):
+            result.append("-std=gnu11")
+        elif argument not in GUEST_CXX_ONLY_FLAGS and argument != "-Werror":
+            result.append(argument)
+    return result
+
+
 def _compile_guest_objects(
     command: list[str], sources: list[Path], output_dir: Path, force: bool,
 ) -> tuple[list[Path], list[Path]]:
@@ -1698,9 +1716,10 @@ def _compile_guest_objects(
             temporary_depfile = temporary.with_suffix(".d")
             started = time.time_ns()
             try:
+                is_c = source.suffix == ".c"
                 _run_process(
-                    [*command, "-MD", "-MF", str(temporary_depfile), "-MT", "object",
-                     "-c", str(source), "-o", str(temporary)],
+                    [*(_guest_c_command(command) if is_c else command), "-MD", "-MF", str(temporary_depfile),
+                     "-MT", "object", "-c", *(["-x", "c"] if is_c else []), str(source), "-o", str(temporary)],
                     check=True,
                 )
                 dependencies = _read_guest_depfile(temporary_depfile)

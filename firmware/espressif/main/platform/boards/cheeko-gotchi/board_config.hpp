@@ -31,7 +31,9 @@ inline constexpr gpio_num_t kLcdMosi = GPIO_NUM_10;
 inline constexpr gpio_num_t kLcdChipSelect = GPIO_NUM_14;
 inline constexpr gpio_num_t kLcdDataCommand = GPIO_NUM_8;
 // Active low, and also the only reset line of the CST810 touch controller.
-inline constexpr gpio_num_t kLcdReset = GPIO_NUM_17;
+// The V1.2 schematic puts LCD_RESET on chip pin 24 (GPIO18) and BAT_DET on
+// pin 23 (GPIO17).
+inline constexpr gpio_num_t kLcdReset = GPIO_NUM_18;
 // Drives the NPN that switches the LED string's low side: active high.
 inline constexpr gpio_num_t kBacklight = GPIO_NUM_13;
 
@@ -39,11 +41,20 @@ inline constexpr gpio_num_t kI2sMasterClock = GPIO_NUM_5;
 inline constexpr gpio_num_t kI2sBitClock = GPIO_NUM_15;
 inline constexpr gpio_num_t kI2sWordSelect = GPIO_NUM_16;
 inline constexpr gpio_num_t kI2sDataOut = GPIO_NUM_6;
+// ES7210 SDOUT; the ADC shares MCLK/BCLK/WS with the ES8311 as a slave.
+inline constexpr gpio_num_t kI2sDataIn = GPIO_NUM_7;
+inline constexpr uint8_t kSpeakerCodecAddress = 0x18U;
+inline constexpr uint8_t kMicrophoneAdcAddress = 0x40U;
 // NS4150B class-D enable, active high with a pull-down on the board.
 inline constexpr gpio_num_t kAmplifierEnable = GPIO_NUM_4;
 
 inline constexpr gpio_num_t kBootButton = GPIO_NUM_0;
 inline constexpr gpio_num_t kVolumeDownButton = GPIO_NUM_39;
 inline constexpr gpio_num_t kVolumeUpButton = GPIO_NUM_40;
+
+// The charger's CHRG line goes to GPIO37, which the ESP32-S3R8's octal PSRAM
+// owns; touching it hangs the chip, so the charge state is not read.
+// BAT_DET carries half the pack voltage (470k/470k), on GPIO17 (ADC2).
+inline constexpr gpio_num_t kBatterySenseCandidates[] = {GPIO_NUM_17};
 
 }  // namespace micropixel::platform::cheeko_gotchi::board

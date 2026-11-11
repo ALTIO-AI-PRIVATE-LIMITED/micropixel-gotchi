@@ -579,7 +579,7 @@ void WifiManager::StartDiscovery() {
     {
         ScopedLock lock(mutex_);
         if (!initialized_ || !enabled_ || profile_count_ == 0U || Cold().snapshot.connected ||
-            user_requested_disconnect_) {
+            user_requested_disconnect_ || access_point_active_) {
             return;
         }
         const int64_t now_us = esp_timer_get_time();
@@ -602,7 +602,7 @@ void WifiManager::ScheduleDiscovery(bool advance_backoff) {
     {
         ScopedLock lock(mutex_);
         if (!initialized_ || !enabled_ || Cold().snapshot.connected || user_requested_disconnect_ ||
-            discovery_timer_ == nullptr) {
+            access_point_active_ || discovery_timer_ == nullptr) {
             return;
         }
         const uint32_t index = std::min<uint32_t>(discovery_backoff_index_, kDiscoveryBackoffUs.size() - 1U);
@@ -773,6 +773,118 @@ std::expected<void, device::WifiError> WifiManager::Forget(std::string_view ssid
     return SaveSettings() ? std::expected<void, device::WifiError>{} : std::unexpected(device::WifiError::kStorage);
 }
 
+std::expected<void, device::WifiError> WifiManager::StartAccessPoint(std::string_view ssid, std::string_view password,
+                                                                     uint8_t channel, uint8_t max_stations) {
+    if (ssid.empty() || ssid.size() > device::kWifiSsidCapacity || password.size() < 8U || password.size() > 63U ||
+        channel < 1U || channel > 13U) {
+        return std::unexpected(device::WifiError::kInvalidArgument);
+    }
+    bool start_driver = false;
+    {
+        ScopedLock lock(mutex_);
+        if (!initialized_ || !driver_initialized_) {
+            return std::unexpected(device::WifiError::kUnavailable);
+        }
+        access_point_active_ = true;
+        start_driver = !enabled_;
+    }
+    if (discovery_timer_ != nullptr) {
+        (void)esp_timer_stop(discovery_timer_);
+    }
+    (void)esp_wifi_scan_stop();
+    if (access_point_netif_ == nullptr) {
+        access_point_netif_ = esp_netif_create_default_wifi_ap();
+    }
+    esp_err_t status = access_point_netif_ != nullptr ? esp_wifi_set_mode(WIFI_MODE_APSTA) : ESP_ERR_NO_MEM;
+    if (status == ESP_OK) {
+        wifi_config_t config{};
+        std::memcpy(config.ap.ssid, ssid.data(), ssid.size());
+        config.ap.ssid_len = static_cast<uint8_t>(ssid.size());
+        std::memcpy(config.ap.password, password.data(), password.size());
+        config.ap.channel = channel;
+        config.ap.authmode = WIFI_AUTH_WPA2_PSK;
+        config.ap.max_connection = max_stations == 0U ? 4U : max_stations;
+        status = esp_wifi_set_config(WIFI_IF_AP, &config);
+    }
+    if (status == ESP_OK && start_driver) {
+        status = esp_wifi_start();
+        if (status == ESP_OK) {
+            ScopedLock lock(mutex_);
+            access_point_started_driver_ = true;
+        }
+    }
+    if (status != ESP_OK) {
+        ESP_LOGW(kTag, "hotspot failed to start: %s", esp_err_to_name(status));
+        (void)StopAccessPoint();
+        return std::unexpected(device::WifiError::kOperationFailed);
+    }
+    ESP_LOGI(kTag, "hotspot \"%.*s\" started on channel %u", static_cast<int>(ssid.size()), ssid.data(), channel);
+    return {};
+}
+
+std::expected<void, device::WifiError> WifiManager::StopAccessPoint() {
+    bool stop_driver = false;
+    bool resume_discovery = false;
+    {
+        ScopedLock lock(mutex_);
+        if (!access_point_active_) {
+            return {};
+        }
+        access_point_active_ = false;
+        stop_driver = access_point_started_driver_;
+        access_point_started_driver_ = false;
+        discovery_backoff_index_ = 0U;
+        resume_discovery = enabled_ && !Cold().snapshot.connected && profile_count_ > 0U && !user_requested_disconnect_;
+    }
+    if (stop_driver) {
+        (void)esp_wifi_stop();
+    }
+    (void)esp_wifi_set_mode(WIFI_MODE_STA);
+    ESP_LOGI(kTag, "hotspot stopped");
+    if (resume_discovery) {
+        StartDiscovery();
+    }
+    return {};
+}
+
+device::WifiLinkInfo WifiManager::LinkInfo() const {
+    device::WifiLinkInfo info{};
+    {
+        ScopedLock lock(mutex_);
+        if (!initialized_ || !driver_initialized_) {
+            return info;
+        }
+        info.station_connected = Cold().snapshot.connected;
+        info.station_connecting = Cold().snapshot.connection_state == device::WifiConnectionState::kConnecting;
+        info.access_point_active = access_point_active_;
+    }
+    esp_netif_ip_info_t ip{};
+    if (info.station_connected && station_netif_ != nullptr && esp_netif_get_ip_info(station_netif_, &ip) == ESP_OK) {
+        info.station_address = ip.ip.addr;
+    }
+    if (info.access_point_active && access_point_netif_ != nullptr &&
+        esp_netif_get_ip_info(access_point_netif_, &ip) == ESP_OK) {
+        info.access_point_address = ip.ip.addr;
+        wifi_sta_list_t stations{};
+        if (esp_wifi_ap_get_sta_list(&stations) == ESP_OK) {
+            info.access_point_stations = static_cast<uint8_t>(stations.num);
+        }
+    }
+    uint8_t primary = 0U;
+    wifi_second_chan_t secondary = WIFI_SECOND_CHAN_NONE;
+    if (esp_wifi_get_channel(&primary, &secondary) == ESP_OK) {
+        info.channel = primary;
+    }
+    // Only while associated: otherwise the driver logs a warning per call.
+    wifi_ap_record_t record{};
+    if (info.station_connected && esp_wifi_sta_get_ap_info(&record) == ESP_OK) {
+        info.rssi = record.rssi;
+        std::memcpy(info.station_ssid.data(), record.ssid, std::min(sizeof(record.ssid), info.station_ssid.size() - 1U));
+    }
+    (void)esp_wifi_get_mac(WIFI_IF_STA, info.mac.data());
+    return info;
+}
+
 void WifiManager::WifiEventHandler(void* context, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     auto* manager = static_cast<WifiManager*>(context);
     if (manager == nullptr) {
@@ -870,6 +982,13 @@ void WifiManager::HandleWifiEvent(int32_t event_id, void* event_data) {
         ScopedLock lock(mutex_);
         associated_ = false;
         Cold().snapshot.connected = false;
+        if (access_point_active_) {
+            // Reconnecting could move the radio off the hotspot's channel;
+            // StopAccessPoint() resumes discovery.
+            Cold().snapshot.connection_state = device::WifiConnectionState::kDisconnected;
+            RebuildSnapshotLocked();
+            return;
+        }
         if (scan_after_disconnect_) {
             scan_after_disconnect_ = false;
             Cold().snapshot.connection_state = device::WifiConnectionState::kDisconnected;

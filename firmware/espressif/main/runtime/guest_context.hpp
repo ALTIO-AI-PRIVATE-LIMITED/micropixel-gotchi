@@ -14,9 +14,13 @@
 #include "runtime/guest_log_sink.hpp"
 #include "runtime/key_event_bridge.hpp"
 #include "runtime/resources/resource_service.hpp"
+#include "runtime/services/ble_link_service.hpp"
 #include "runtime/services/direct_surface_service.hpp"
 #include "runtime/services/gpio_service.hpp"
 #include "runtime/services/haptics_service.hpp"
+#include "runtime/services/microphone_service.hpp"
+#include "runtime/services/network_service.hpp"
+#include "runtime/services/peer_radio_service.hpp"
 #include "runtime/services/raster_service.hpp"
 #include "runtime/services/sensor_service.hpp"
 #include "runtime/services/storage_service.hpp"
@@ -54,6 +58,7 @@ class GuestContext final {
 
     [[nodiscard]] bool valid() const {  // NOLINT(readability-identifier-naming)
         return events_.valid() && timers_.valid() && sensors_.valid() && gpio_.valid() && haptics_.valid() &&
+               microphone_.valid() && peer_radio_.valid() && ble_link_.valid() && network_.valid() &&
                resources_.valid() && audio_playback_.valid() && storage_.valid() && audio_foreground_ready_;
     }
     [[nodiscard]] micropixel_app_time_t AppTimeNow() const { return timers_.Now(); }
@@ -260,6 +265,79 @@ class GuestContext final {
     [[nodiscard]] device::DeviceResult<micropixel_power_info_t> PowerInfo(micropixel_device_id_t device) {
         return devices_.power_info().Get(device);
     }
+    [[nodiscard]] micropixel_hid_keyboard_state_t HidKeyboardState() { return devices_.hid_keyboard().GetState(); }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardStart() { return devices_.hid_keyboard().Start(); }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardKey(uint8_t usage, bool pressed, uint32_t flags) {
+        return devices_.hid_keyboard().Key(usage, pressed, flags);
+    }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardConsumer(uint16_t usage, bool pressed) {
+        return devices_.hid_keyboard().Consumer(usage, pressed);
+    }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardMouse(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel,
+                                                              int8_t pan) {
+        return devices_.hid_keyboard().Mouse(buttons, dx, dy, wheel, pan);
+    }
+    [[nodiscard]] device::DeviceResult<void> HidKeyboardForgetBonds() { return devices_.hid_keyboard().ForgetBonds(); }
+    [[nodiscard]] micropixel_ble_link_state_t BleLinkState() const { return ble_link_.State(); }
+    [[nodiscard]] ServiceResult<void> BleLinkStart() { return ble_link_.Start(); }
+    [[nodiscard]] ServiceResult<void> BleLinkStop() { return ble_link_.Stop(); }
+    [[nodiscard]] ServiceResult<micropixel_ble_link_read_response_t> BleLinkRead(uint8_t* data_out,
+                                                                                  uint32_t capacity) {
+        return ble_link_.Read(data_out, capacity);
+    }
+    [[nodiscard]] ServiceResult<void> BleLinkNotify(uint8_t channel, const uint8_t* data, uint32_t length) {
+        return ble_link_.Notify(channel, data, length);
+    }
+    [[nodiscard]] ServiceResult<void> BleLinkSetValue(const uint8_t* data, uint32_t length) {
+        return ble_link_.SetValue(data, length);
+    }
+    [[nodiscard]] micropixel_network_state_t NetworkState() const { return network_.State(); }
+    [[nodiscard]] ServiceResult<void> NetworkStartAccessPoint(
+        const micropixel_network_access_point_request_t& request) {
+        return network_.StartAccessPoint(request);
+    }
+    [[nodiscard]] ServiceResult<void> NetworkStopAccessPoint() { return network_.StopAccessPoint(); }
+    [[nodiscard]] ServiceResult<uint32_t> NetworkAdvertise(const micropixel_network_advertise_request_t& request,
+                                                           const uint8_t* txt, uint32_t txt_length) {
+        return network_.Advertise(request, txt, txt_length);
+    }
+    [[nodiscard]] ServiceResult<void> NetworkWithdraw(uint32_t handle) { return network_.Withdraw(handle); }
+    [[nodiscard]] ServiceResult<uint32_t> NetworkOpen(uint8_t kind, uint16_t port) { return network_.Open(kind, port); }
+    [[nodiscard]] ServiceResult<micropixel_network_accept_response_t> NetworkAccept(uint32_t handle) {
+        return network_.Accept(handle);
+    }
+    [[nodiscard]] ServiceResult<micropixel_network_receive_response_t> NetworkReceive(uint32_t handle,
+                                                                                      uint8_t* data_out,
+                                                                                      uint32_t capacity) {
+        return network_.Receive(handle, data_out, capacity);
+    }
+    [[nodiscard]] ServiceResult<uint32_t> NetworkSend(const micropixel_network_send_request_t& request,
+                                                      const uint8_t* data) {
+        return network_.Send(request, data);
+    }
+    [[nodiscard]] ServiceResult<void> NetworkClose(uint32_t handle) { return network_.Close(handle); }
+    [[nodiscard]] micropixel_microphone_info_t MicrophoneInfo() const { return microphone_.Info(); }
+    [[nodiscard]] ServiceResult<void> MicrophoneStart(uint8_t gain_db) { return microphone_.Start(gain_db); }
+    [[nodiscard]] ServiceResult<void> MicrophoneStop() { return microphone_.Stop(); }
+    [[nodiscard]] ServiceResult<micropixel_microphone_read_response_t> MicrophoneRead(int16_t* samples_out,
+                                                                                       uint32_t max_samples) {
+        return microphone_.Read(samples_out, max_samples);
+    }
+    [[nodiscard]] micropixel_peer_radio_state_t PeerRadioState() const { return peer_radio_.State(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioStart() { return peer_radio_.Start(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioStop() { return peer_radio_.Stop(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioBeginPairing() { return peer_radio_.BeginPairing(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioAccept(const uint8_t (&address)[6]) {
+        return peer_radio_.AcceptPeer(address);
+    }
+    [[nodiscard]] ServiceResult<void> PeerRadioForget() { return peer_radio_.Forget(); }
+    [[nodiscard]] ServiceResult<void> PeerRadioSend(const uint8_t* data, uint32_t length) {
+        return peer_radio_.Send(data, length);
+    }
+    [[nodiscard]] ServiceResult<micropixel_peer_radio_receive_response_t> PeerRadioReceive(uint8_t* payload_out,
+                                                                                            uint32_t capacity) {
+        return peer_radio_.Receive(payload_out, capacity);
+    }
     [[nodiscard]] device::DeviceResult<void> AudioPlayTone(const micropixel_audio_tone_t& tone) const {
         return devices_.audio().PlayTone(tone);
     }
@@ -346,6 +424,10 @@ class GuestContext final {
     SensorService sensors_;
     GpioService gpio_;
     HapticsService haptics_;
+    MicrophoneService microphone_;
+    PeerRadioService peer_radio_;
+    BleLinkService ble_link_;
+    NetworkService network_;
     ResourceService resources_;
     AudioPlaybackService audio_playback_;
     PcmStreamService pcm_stream_;
@@ -367,6 +449,11 @@ class GuestContext final {
     GpioServiceEndpoint gpio_endpoint_;
     HapticsServiceEndpoint haptics_endpoint_;
     PowerInfoServiceEndpoint power_info_endpoint_;
+    HidKeyboardServiceEndpoint hid_keyboard_endpoint_;
+    MicrophoneServiceEndpoint microphone_endpoint_;
+    PeerRadioServiceEndpoint peer_radio_endpoint_;
+    BleLinkServiceEndpoint ble_link_endpoint_;
+    NetworkServiceEndpoint network_endpoint_;
     ServiceRegistry service_registry_;
     uint32_t core_sequence_{};
     bool suspended_{};
