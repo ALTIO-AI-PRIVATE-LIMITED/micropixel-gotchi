@@ -1,4 +1,4 @@
-# AI 使用 MicroPixel SDK
+# AI 使用 CGotchi SDK
 
 [English](AI.md)
 

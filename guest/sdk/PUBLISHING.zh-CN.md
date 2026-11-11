@@ -1,4 +1,4 @@
-# 发布应用到 MicroPixel 商店
+# 发布应用到 CGotchi 商店
 
 [English](PUBLISHING.md)
 

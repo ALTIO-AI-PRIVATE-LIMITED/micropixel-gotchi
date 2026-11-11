@@ -1,4 +1,4 @@
-# MicroPixel board port checklist
+# CGotchi board port checklist
 
 > Board initializes Drivers and registers its available Peripherals,
 > Controllers, and Presentation with Platform. Platform turns Peripherals into

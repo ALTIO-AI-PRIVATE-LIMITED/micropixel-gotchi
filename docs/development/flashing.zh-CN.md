@@ -94,7 +94,7 @@ bash tools/p4.sh fullclean-host
 也不把这两个引脚公开为 Guest GPIO。System Information 显示实际识别到的版本。
 
 ESP-Mosaico 使用 ESP32-S31 target 和独立 build 目录。工具自动传入当前 ESP-IDF 要求的
-`--preview` 参数；该参数不表示 MicroPixel 板型支持等级。
+`--preview` 参数；该参数不表示 CGotchi 板型支持等级。
 
 ```sh
 bash tools/s31.sh build-host
@@ -119,7 +119,7 @@ ESP-Mosaico 板载 Type-C 连接的是 USB 2.0 HS OTG，而不是左侧模块接
 左侧 USB Serial/JTAG 仍保留为次输出。ROM 下载态与应用 TinyUSB 态使用不同 USB 描述符，macOS/Linux
 设备节点可能随重枚举变化，不要把 `/dev/cu.usbmodem*` 或 `/dev/ttyACM*` 名称写死在自动化中。
 
-MicroPixel 应用 CDC 实现 BSP 的 DTR/RTS 自动下载握手。`flash-host` 识别应用 USB 产品名后请求芯片进入
+CGotchi 应用 CDC 实现 BSP 的 DTR/RTS 自动下载握手。`flash-host` 识别应用 USB 产品名后请求芯片进入
 ROM，随后按同一 USB 物理位置等待 ROM 产品名并在同一个 esptool 连接中完成芯片校验和写入。这里刻意不在
 写入前单独运行 `chip-id`：rev0 S31 的一次性 ROM 下载状态会被探测连接关闭时的控制线变化消耗掉。该闭环已
 在 macOS 真机验证；首次烧录、应用固件损坏或应用 CDC 未启动时，仍需按板卡说明手动进入 ROM 下载模式。

@@ -6,7 +6,7 @@
 
 ## 1. 准备 SDK 和设备
 
-下载并解压 [MicroPixel SDK](https://micropixel.ai/docs/releases/sdk/latest.json) 中 `archiveUrl` 指向的归档，使用同一文件中的 `sha256` 校验下载。归档地址为网站域名加 `archiveUrl`；不要只下载这份 JSON。
+下载并解压 [CGotchi SDK](https://micropixel.ai/docs/releases/sdk/latest.json) 中 `archiveUrl` 指向的归档，使用同一文件中的 `sha256` 校验下载。归档地址为网站域名加 `archiveUrl`；不要只下载这份 JSON。
 已解压 SDK 的用户可直接继续。完整下载命令、WASI SDK 与固定版本 WAMRC 的安装见[开发环境](https://micropixel.ai/docs/environment/)。普通 App 开发不需要 ESP-IDF。
 
 在解压后的 SDK 根目录执行（macOS / Linux shell）：
@@ -19,9 +19,9 @@ python3 -m pip install "pyserial>=3.5,<4"
 micropixel --version
 ```
 
-后两条工具链路径必须换成实际安装位置。WAMRC 必须来自 MicroPixel 固定 fork、生成 AOT v6；不能用版本号相同的上游 WAMRC 替代。新终端需重新设置环境变量。
+后两条工具链路径必须换成实际安装位置。WAMRC 必须来自 固定 WAMR fork、生成 AOT v6；不能用版本号相同的上游 WAMRC 替代。新终端需重新设置环境变量。
 
-连接一台已烧录 MicroPixel 固件的设备，关闭其他串口工具：
+连接一台已烧录 CGotchi 固件的设备，关闭其他串口工具：
 
 ```sh
 micropixel --transport usb device status

@@ -4,8 +4,9 @@
 
 ## Setup
 
-Install the [MicroPixel SDK and toolchain](https://micropixel.ai/docs/environment/).
-Connect one device running [MicroPixel firmware](https://micropixel.ai/flash/) and close other serial tools.
+Install the [CGotchi SDK and toolchain](https://micropixel.ai/docs/environment/).
+Connect one CGotchi with a USB-C data cable and close other serial tools. To flash the firmware, see the
+[README](../../README.md#build-and-flash-the-firmware).
 App development does not require ESP-IDF.
 
 For an extracted SDK on macOS/Linux, run from its root:
@@ -18,7 +19,7 @@ python3 -m pip install "pyserial>=3.5,<4"
 micropixel --transport usb device status
 ```
 
-Replace the toolchain paths with your installed locations. WAMRC must be the MicroPixel fork producing AOT v6.
+Replace the toolchain paths with your installed locations. WAMRC must be the pinned WAMR fork producing AOT v6.
 Windows users: see [managed installation](AI.md).
 
 ## Create and run

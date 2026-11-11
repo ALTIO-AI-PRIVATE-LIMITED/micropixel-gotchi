@@ -139,7 +139,7 @@
   "ui.turn_off": "オフにする",
   "ui.system_information": "システム情報",
   "ui.device_firmware_and_memory": "デバイス、ファームウェア、メモリ",
-  "ui.micropixel_firmware": "MicroPixel ファームウェア",
+  "ui.micropixel_firmware": "CGotchi ファームウェア",
   "ui.connect_to_control_to_check_for_updates": "操作サービスに接続して更新を確認",
   "ui.reinstall_s": "%s を再インストール",
   "ui.hardware": "ハードウェア",

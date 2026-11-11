@@ -77,7 +77,7 @@ class Timer final {
 }  // namespace micropixel
 ```
 
-MicroPixel 是项目正式名称，C++ namespace 统一使用 `micropixel`。板级名称不得进入通用 SDK 类型。
+CGotchi 是项目正式名称，C++ namespace 统一使用 `micropixel`。板级名称不得进入通用 SDK 类型。
 
 ## 3. 命名
 

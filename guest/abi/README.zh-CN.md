@@ -1,4 +1,4 @@
-# MicroPixel Guest–Host ABI v2
+# CGotchi Guest–Host ABI v2
 
 ABI v2 的机器可读定义以
 [`micropixel_abi.h`](micropixel_abi.h) 为准；[`allowed_imports.txt`](allowed_imports.txt)

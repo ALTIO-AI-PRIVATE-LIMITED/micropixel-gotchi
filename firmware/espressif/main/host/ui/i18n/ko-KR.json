@@ -139,7 +139,7 @@
   "ui.turn_off": "끄기",
   "ui.system_information": "시스템 정보",
   "ui.device_firmware_and_memory": "기기, 펌웨어 및 메모리",
-  "ui.micropixel_firmware": "MicroPixel 펌웨어",
+  "ui.micropixel_firmware": "CGotchi 펌웨어",
   "ui.connect_to_control_to_check_for_updates": "제어 서비스에 연결하여 업데이트 확인",
   "ui.reinstall_s": "%s 다시 설치",
   "ui.hardware": "하드웨어",

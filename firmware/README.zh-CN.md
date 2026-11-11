@@ -1,6 +1,6 @@
 # Espressif 固件
 
-使用 ESP-IDF 6.1 与固定版本的 MicroPixel WAMR fork。在仓库根目录执行命令，
+使用 ESP-IDF 6.1 与固定版本的 WAMR fork。在仓库根目录执行命令，
 先按[构建指南](../docs/development/flashing.zh-CN.md)配置工具链。
 
 ```sh

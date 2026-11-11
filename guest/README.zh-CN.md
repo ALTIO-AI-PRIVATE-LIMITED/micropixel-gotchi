@@ -87,7 +87,7 @@ micropixel --transport usb run
 `run` / `app install` 比较已安装 Bundle 的 App ID、大小和摘要；一致时跳过上传。
 `--force` 强制重新构建和上传。`run` 始终重新启动应用。
 
-AOT 使用固定 MicroPixel WAMR fork 和 format v6，不能替换为上游 AOT v5。
+AOT 使用固定 WAMR fork 和 format v6，不能替换为上游 AOT v5。
 产物按架构分开打包；连接设备时自动选择目标，离线打包必须显式指定 `--aot-target`。
 
 Guest 支持受限 C++23 与动态内存，不支持 OS 标准库、exception、RTTI、线程或 WASI import。

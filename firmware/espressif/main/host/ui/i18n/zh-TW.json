@@ -139,7 +139,7 @@
   "ui.turn_off": "關閉",
   "ui.system_information": "系統資訊",
   "ui.device_firmware_and_memory": "裝置、韌體與記憶體",
-  "ui.micropixel_firmware": "MicroPixel 韌體",
+  "ui.micropixel_firmware": "CGotchi 韌體",
   "ui.connect_to_control_to_check_for_updates": "連接控制服務以檢查更新",
   "ui.reinstall_s": "重新安裝 %s",
   "ui.hardware": "硬體",

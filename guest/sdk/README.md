@@ -1,4 +1,4 @@
-# MicroPixel C++ SDK
+# CGotchi C++ SDK
 
 A restricted C++23 SDK for WebAssembly apps. No ESP-IDF, LVGL, board-specific types, threads, exceptions, or RTTI.
 
