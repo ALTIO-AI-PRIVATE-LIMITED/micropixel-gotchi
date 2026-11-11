@@ -1,6 +1,6 @@
 # BundleFS 持久化格式与事务模型
 
-BundleFS 是 MicroPixel 存放 Bundle 的专用文件系统。它只保存不可变的 Bundle 文件，不提供目录、
+BundleFS 是 CGotchi 存放 Bundle 的专用文件系统。它只保存不可变的 Bundle 文件，不提供目录、
 随机覆盖写、块链表或 Guest 可见的 Flash 地址。上层 `AppStore` 负责 Bundle 语义、安装策略和 AppId 校验，
 并且是唯一直接调用 BundleFS `Open/List/Replace/Remove` 的模块。Bundle reader、AOT loader 和 App Hall
 不直接依赖 BundleFS：它们通过 `runtime/bundle/bundle_source.h` 定义的 Bundle source 契约读取内容，

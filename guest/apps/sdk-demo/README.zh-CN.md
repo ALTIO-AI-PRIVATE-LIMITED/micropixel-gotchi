@@ -1,4 +1,4 @@
-# MicroPixel SDK Demo
+# CGotchi SDK Demo
 
 这是一个统一编译、统一烧录并通过触摸界面导航的 SDK 功能演示应用。它不是自动化 conformance
 test，也不为每项能力生成独立 AOT；协议、错误和边界验证继续放在 `guest/tests/`。

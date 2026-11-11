@@ -13,7 +13,7 @@ A single-threaded event loop handles input, timers, and lifecycle events.
 
 ## Run an example
 
-With the SDK toolchain configured and a MicroPixel device connected:
+With the SDK toolchain configured and a CGotchi device connected:
 
 ```sh
 python3 tools/micropixel --transport usb run guest/apps/sdk-demo
@@ -25,6 +25,6 @@ For a release Bundle, choose the architecture explicitly:
 python3 tools/micropixel package guest/apps/sdk-demo --aot-target riscv32-ilp32f
 ```
 
-P4/S31 use `riscv32-ilp32f`; S3 uses `xtensa`. Both require the matching MicroPixel WAMRC and AOT v6.
+P4/S31 use `riscv32-ilp32f`; S3 uses `xtensa`. Both require the matching pinned WAMRC and AOT v6.
 
 [Quickstart](sdk/QUICKSTART.md) · [Publishing](sdk/PUBLISHING.md) · [Build and Bundle reference (中文)](README.zh-CN.md)

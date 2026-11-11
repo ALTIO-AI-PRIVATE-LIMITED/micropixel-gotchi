@@ -1,6 +1,6 @@
 # Espressif firmware
 
-ESP-IDF 6.1 Host firmware with a pinned MicroPixel WAMR fork. Run commands from the repository root
+ESP-IDF 6.1 Host firmware with a pinned WAMR fork. Run commands from the repository root
 with the [toolchain configured](../docs/development/flashing.zh-CN.md) (Chinese).
 
 ```sh

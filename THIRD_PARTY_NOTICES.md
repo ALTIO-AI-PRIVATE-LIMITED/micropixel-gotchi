@@ -5,7 +5,7 @@ Unless otherwise noted, project-authored source code, documentation, and assets 
 
 ## WebAssembly Micro Runtime
 
-`firmware/espressif/components/wasm-micro-runtime/` is a Git submodule of the MicroPixel WebAssembly Micro Runtime
+`firmware/espressif/components/wasm-micro-runtime/` is a Git submodule of a pinned WebAssembly Micro Runtime
 (WAMR) fork:
 
 - fork: <https://github.com/78/wasm-micro-runtime>;
@@ -19,7 +19,7 @@ files are present in that directory.
 
 ## ESP-IoT-Solution
 
-`firmware/espressif/components/esp-iot-solution/` is a Git submodule of the MicroPixel fork of Espressif's
+`firmware/espressif/components/esp-iot-solution/` is a Git submodule of a pinned fork of Espressif's
 esp-iot-solution; the build only uses its `esp_lvgl_adapter` component through `override_path`:
 
 - fork: <https://github.com/78/esp-iot-solution>;
@@ -49,21 +49,21 @@ copy once the component is fixed upstream.
 
 ## LLVM libc++ in Guest applications
 
-MicroPixel Guest applications are compiled with libc++ headers and selected static-library objects distributed by
+CGotchi Guest applications are compiled with libc++ headers and selected static-library objects distributed by
 wasi-sdk. Link-time garbage collection retains only objects referenced by each Guest:
 
 - upstream: <https://github.com/llvm/llvm-project/tree/main/libcxx>;
 - toolchain distribution: <https://github.com/WebAssembly/wasi-sdk>;
 - license: Apache-2.0 WITH LLVM-exception.
 
-The toolchain distributions contain the complete applicable license and attribution files. MicroPixel does not
+The toolchain distributions contain the complete applicable license and attribution files. CGotchi does not
 copy the libc++ source tree into this repository.
 
 ## SenseCAP Watcher board power sequencing
 
 The PCA95xx rail directions, the rail startup order and the active levels in
 `firmware/espressif/main/platform/boards/sensecap-watcher/board_power.cpp` follow
-the board support package published for the SenseCAP Watcher. MicroPixel drives
+the board support package published for the SenseCAP Watcher. CGotchi drives
 the expander through its own I2C device handle and keeps its own peripheral
 lifecycle.
 
@@ -83,7 +83,7 @@ the state-of-charge curve in
 `firmware/espressif/main/platform/boards/sensecap-watcher/battery_peripheral.cpp`
 come from the board support package published for the SenseCAP Watcher, which is
 also the authority for the expander line the board treats as charge state.
-MicroPixel samples the divider through its own ADC oneshot unit, reads the line
+CGotchi samples the divider through its own ADC oneshot unit, reads the line
 through its own board power service, and reports the level to the Host UI.
 
 - upstream: <https://github.com/Seeed-Studio/SenseCAP-Watcher-Firmware>;
@@ -105,7 +105,7 @@ gates it on the battery-detect line.
 The TCA9555 startup pin directions and peripheral rail levels in
 `firmware/espressif/main/platform/boards/metalio-claw4/board_io.cpp` follow
 `IOExpander.hpp` and `metalio-claw-4.cc` from MetalioClaw4 revision
-`ca3aa3fa027ff7dad2adf0c2d03c4f24aa838950`. MicroPixel writes output latches
+`ca3aa3fa027ff7dad2adf0c2d03c4f24aa838950`. CGotchi writes output latches
 before enabling output directions and retains its own peripheral lifecycle.
 The source project and MIT notice below apply.
 
@@ -152,7 +152,7 @@ The browser firmware installer loads the ESP32-S31 RAM flasher binary from the `
 - package/version: `esp-flasher-stub` 1.2.2;
 - license: Apache-2.0 OR MIT.
 
-The package retains the complete Apache-2.0 and MIT license texts. MicroPixel uses the unmodified ESP32-S31 JSON
+The package retains the complete Apache-2.0 and MIT license texts. CGotchi uses the unmodified ESP32-S31 JSON
 artifact and implements only the Web Serial upload and protocol integration around it.
 
 ## Bosch SensorAPI
@@ -167,7 +167,7 @@ ESP-Mosaico's BMI270 inertial sensor and two BMM150 magnetometers:
 - copyright: Bosch Sensortec GmbH;
 - license: BSD-3-Clause.
 
-The complete upstream license text is retained alongside each copied driver. MicroPixel supplies only the
+The complete upstream license text is retained alongside each copied driver. CGotchi supplies only the
 ESP-IDF transport callbacks and board-level scheduling wrappers.
 
 ### esp_codec_dev
@@ -175,7 +175,7 @@ ESP-IDF transport callbacks and board-level scheduling wrappers.
 ESP-Mosaico and ESP32-S3 ES8311/AW88298 initialization use `espressif/esp_codec_dev` 1.6.2 from the ESP Component Registry:
 
 - upstream: <https://components.espressif.com/components/espressif/esp_codec_dev>, Apache-2.0;
-- scope: ES8311 codec configuration and the ESP-IDF I2S data interface; MicroPixel supplies the shared-I2C-executor
+- scope: ES8311 codec configuration and the ESP-IDF I2S data interface; CGotchi supplies the shared-I2C-executor
   control interface and keeps Host master-volume attenuation in its fixed-capacity audio backend.
 
 The declared version constraint is recorded in `firmware/espressif/main/idf_component.yml`, and the downloaded
@@ -188,7 +188,7 @@ ESP Component Registry, which vendors the dhara flash translation layer via `esp
 
 - upstream: <https://components.espressif.com/components/espressif/spi_nand_flash>, Apache-2.0;
 - dhara: <https://github.com/dlbeer/dhara>, ISC-style permissive licence, redistributed inside the component;
-- scope: chip detection, SPI command sequencing, wear-leveling and logical-sector journaling; MicroPixel supplies the
+- scope: chip detection, SPI command sequencing, wear-leveling and logical-sector journaling; CGotchi supplies the
   `device::BlockStorage` adapter (`platform/storage/spi_nand_block_storage.cpp`) and keeps BundleFS's copy-on-write
   transaction and recovery model above it. The dependency is declared only for the `esp32s31` target.
 
@@ -198,7 +198,7 @@ The native ESP32-S3-BOX-3 backend derives its pin assignments, controller select
 sequence from Espressif's `esp-box-3` BSP 3.2.0:
 
 - upstream: <https://github.com/espressif/esp-bsp/tree/master/bsp/esp-box-3>, Apache-2.0;
-- scope: only the board-specific I2C, display, touch and backlight facts needed by MicroPixel are maintained locally;
+- scope: only the board-specific I2C, display, touch and backlight facts needed by CGotchi are maintained locally;
   the upstream BSP component is not linked, so it does not constrain the shared codec or LVGL dependency versions.
 
 ### M5Stack CoreS3 board definitions
@@ -219,7 +219,7 @@ Ogg Opus playback uses `esphome/micro-opus` 0.4.1 from the ESP Component Registr
 - resolved component source revision: `8354085908683c6130e32a832aeec8a7ca115c51`.
 
 The downloaded managed component contains the complete Apache-2.0 notice and the upstream libopus copyright and
-license files. MicroPixel uses its streaming Ogg Opus decoder with one shared PSRAM-backed pseudostack and does not
+license files. CGotchi uses its streaming Ogg Opus decoder with one shared PSRAM-backed pseudostack and does not
 expose the component API to Guest applications.
 
 ### esp_tinyusb and TinyUSB
@@ -243,7 +243,7 @@ The ESP32-P4 build uses these Apache-2.0 components from the ESP Component Regis
 
 Exact versions are recorded in `firmware/espressif/main/idf_component.yml`. The UHCI package declares
 Apache-2.0 in its manifest; the modem and iot_eth packages also include their upstream license texts.
-MicroPixel does not maintain a copied NT26 or UHCI implementation.
+CGotchi does not maintain a copied NT26 or UHCI implementation.
 
 ## System font sources
 
@@ -258,7 +258,7 @@ component-archive extras:
 - Font Awesome 5 Free: SIL Open Font License 1.1 for the font; icons CC BY 4.0; copyright 2022
   Fonticons, Inc.; license text in `LICENSE.FontAwesome5.txt`.
 
-MicroPixel's generated `builtin-latin-v1` semantic fonts include the public SDK symbol set from Font
+CGotchi's generated `builtin-latin-v1` semantic fonts include the public SDK symbol set from Font
 Awesome 5. The Hall's Wi-Fi and cellular signal icons use fixed-size alpha masks derived from its
 Wi-Fi and signal glyphs. Strength variants preserve each source glyph's baseline and footprint.
 
@@ -289,8 +289,8 @@ redistributable directory. File hashes are pinned in `tools/windows/msvc-crt-sou
 These proprietary Microsoft components are covered by the
 [Microsoft runtime license](https://visualstudio.microsoft.com/license-terms/vs2022-cruntime/)
 and [distributable list](https://learn.microsoft.com/en-us/visualstudio/releases/2022/redistribution),
-not MicroPixel's Apache-2.0 license. The package retains a dedicated Microsoft notice.
-MicroPixel updates must also deliver updates to this app-local runtime.
+not CGotchi's Apache-2.0 license. The package retains a dedicated Microsoft notice.
+CGotchi updates must also deliver updates to this app-local runtime.
 
 ## System language fonts
 

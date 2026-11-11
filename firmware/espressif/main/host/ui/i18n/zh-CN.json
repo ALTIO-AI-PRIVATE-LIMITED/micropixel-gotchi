@@ -139,7 +139,7 @@
   "ui.turn_off": "关闭",
   "ui.system_information": "系统信息",
   "ui.device_firmware_and_memory": "设备、固件与内存",
-  "ui.micropixel_firmware": "MicroPixel 固件",
+  "ui.micropixel_firmware": "CGotchi 固件",
   "ui.connect_to_control_to_check_for_updates": "连接控制服务以检查更新",
   "ui.reinstall_s": "重新安装 %s",
   "ui.hardware": "硬件",

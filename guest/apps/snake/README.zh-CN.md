@@ -1,6 +1,6 @@
 # Juicy Snake
 
-Juicy Snake 是 MicroPixel 的完整 Guest 游戏示例，包含游戏源码、Bundle metadata 和运行时素材。
+Juicy Snake 是 CGotchi 的完整 Guest 游戏示例，包含游戏源码、Bundle metadata 和运行时素材。
 
 ```text
 snake/

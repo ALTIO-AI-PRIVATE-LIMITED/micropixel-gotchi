@@ -1,6 +1,6 @@
-# MicroPixel 架构
+# CGotchi 架构
 
-MicroPixel 把应用逻辑放在 WebAssembly Guest 中，把硬件、系统 UI 和资源管理留给 Host。
+CGotchi 把应用逻辑放在 WebAssembly Guest 中，把硬件、系统 UI 和资源管理留给 Host。
 这种分工让同一个应用源码适配不同开发板，同时由 Host 控制内存、设备访问和失控应用的退出。
 本文解释设计边界与取舍；接口用法见 [Guest SDK](../../guest/sdk/README.zh-CN.md)，
 实现入口见 [Firmware 导航](../../firmware/espressif/main/README.zh-CN.md)。
@@ -9,7 +9,7 @@ MicroPixel 把应用逻辑放在 WebAssembly Guest 中，把硬件、系统 UI �
 
 - 支持 ESP32-P4 + Metalio-Claw4、ESP32-S31 + ESP-Mosaico，以及 ESP32-S3-BOX-3、
   立创 SZPI ESP32-S3 和 M5Stack CoreS3。
-- Host 使用 ESP-IDF 6.1 与固定 commit 的 MicroPixel WAMR fork，执行 AOT format v6。
+- Host 使用 ESP-IDF 6.1 与固定 commit 的 WAMR fork，执行 AOT format v6。
   Guest 使用受限 C++23，不依赖 ESP-IDF、LVGL 或板级 SDK。
 - 一个长驻 Runtime 同时最多持有一个 AppSession。Guest 按单线程事件模型运行。
 - Bundle v1 封装 AOT、资源和应用元数据；BundleFS v2 管理可写 App Store，P4 为 24 MiB，S31/S3 为 8 MiB。

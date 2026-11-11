@@ -139,7 +139,7 @@
   "ui.turn_off": "Turn Off",
   "ui.system_information": "System Information",
   "ui.device_firmware_and_memory": "Device, firmware and memory",
-  "ui.micropixel_firmware": "MICROPIXEL FIRMWARE",
+  "ui.micropixel_firmware": "CGOTCHI FIRMWARE",
   "ui.connect_to_control_to_check_for_updates": "Connect to Control to check for updates",
   "ui.reinstall_s": "Reinstall %s",
   "ui.hardware": "HARDWARE",

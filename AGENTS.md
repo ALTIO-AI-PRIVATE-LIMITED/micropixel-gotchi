@@ -4,7 +4,7 @@ Applies to the entire repository. Use source code, ABI headers, and executable t
 
 ## Architecture
 
-MicroPixel runs WebAssembly apps on Espressif MCUs using ESP-IDF 6.1 and a pinned WAMR fork (AOT v6).
+CGotchi runs WebAssembly apps on Espressif MCUs using ESP-IDF 6.1 and a pinned WAMR fork (AOT v6).
 Guests use a restricted C++23 SDK and a single-threaded event loop; only one AppSession can exist at a time.
 Supported boards are Metalio-Claw4, ESP-Mosaico, ESP32-S3-BOX-3, LCKFB SZPI, and M5Stack CoreS3.
 Bundle v1 distributes apps; BundleFS v3 provides copy-on-write storage and power-loss recovery with

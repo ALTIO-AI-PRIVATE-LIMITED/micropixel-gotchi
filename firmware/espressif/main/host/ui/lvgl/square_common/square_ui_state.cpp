@@ -263,7 +263,7 @@ void SquareSystemUiState::ShowStartingScreenLocked() {
         lv_obj_clean(starting_root);
         lv_obj_set_style_bg_color(starting_root, lv_color_hex(theme::kLoadingBackground), 0);
         lv_obj_t* label = lv_label_create(starting_root);
-        lv_label_set_text(label, "Starting MicroPixel...");
+        lv_label_set_text(label, "Starting CGotchi...");
         lv_obj_set_style_text_color(label, lv_color_hex(theme::kLoadingText), 0);
         lv_obj_set_style_text_font(label, platform::lvgl::BuiltinLatinFont(platform::lvgl::SystemFontRole::kTitle), 0);
         lv_obj_center(label);
